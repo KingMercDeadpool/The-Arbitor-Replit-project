@@ -51,14 +51,6 @@ export default function Combat() {
   const [isPitFight, setIsPitFight] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(15);
   const [lastResult, setLastResult] = useState<{ correct: boolean; message: string } | null>(null);
-  const [showTutorial, setShowTutorial] = useState(() => {
-    return !localStorage.getItem("arbitor_trial_tutorial_seen");
-  });
-
-  const closeTutorial = () => {
-    localStorage.setItem("arbitor_trial_tutorial_seen", "true");
-    setShowTutorial(false);
-  };
 
   const trial = state.trial;
   const injury = state.injury || { level: 0, woundTag: null };
@@ -148,40 +140,6 @@ export default function Combat() {
 
   return (
     <div className="min-h-screen bg-background p-4 max-w-lg mx-auto">
-      {showTutorial && (
-        <Dialog open={showTutorial} onOpenChange={closeTutorial}>
-          <DialogContent className="bg-slate-900 border-slate-800 text-slate-100 max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-amber-400 font-serif text-xl">Tactical Trials: Field Manual</DialogTitle>
-              <DialogDescription className="text-slate-400">
-                A primer for Kami Reiss's new method of overcoming adversaries.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4 text-sm leading-relaxed">
-              <div className="flex gap-3">
-                <Brain className="w-5 h-5 text-blue-400 shrink-0" />
-                <p><span className="font-bold text-blue-400">Knowledge is Power:</span> Combat is now a test of your mental acuity. Answer questions about Lore, Doctrine, and Patterns to defeat foes.</p>
-              </div>
-              <div className="flex gap-3">
-                <Timer className="w-5 h-5 text-red-400 shrink-0" />
-                <p><span className="font-bold text-red-400">The Clock:</span> You have a limited window to answer. Mastery lowers the pressure, but speed remains essential.</p>
-              </div>
-              <div className="flex gap-3">
-                <Target className="w-5 h-5 text-emerald-400 shrink-0" />
-                <p><span className="font-bold text-emerald-400">Exchanges:</span> A trial consists of 3 exchanges. Overcome them all to claim victory and gain Mastery.</p>
-              </div>
-              <div className="flex gap-3">
-                <Shield className="w-5 h-5 text-amber-400 shrink-0" />
-                <p><span className="font-bold text-amber-400">Failure & Escape:</span> Wrong answers cause damage. At 100% damage, you'll be forced to escape with an injury. You can flee early to minimize harm.</p>
-              </div>
-            </div>
-            <Button onClick={closeTutorial} className="w-full bg-amber-600 hover:bg-amber-700 text-white">
-              Understood, Arbitor
-            </Button>
-          </DialogContent>
-        </Dialog>
-      )}
-
       <div className="flex items-center gap-2 mb-4">
         <Link href="/">
           <Button variant="ghost" size="icon" data-testid="button-back">

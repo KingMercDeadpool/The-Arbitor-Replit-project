@@ -27,9 +27,9 @@ export default function Home() {
   const { state, actions } = useGameState();
 
   return (
-    <div className="min-h-screen bg-slate-950 pb-20">
+    <div className="min-h-screen bg-transparent pb-20">
       {/* Header */}
-      <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-50">
+      <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-50 hidden lg:block">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <div>
              <h1 className="text-xl text-slate-100 font-serif font-bold tracking-tight">The Arbitor of the Mainland</h1>
@@ -57,7 +57,7 @@ export default function Home() {
 
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-slate-900 border border-slate-800 h-auto p-1">
+          <TabsList className="grid w-full grid-cols-4 bg-slate-900 border border-slate-800 h-auto p-1 sticky top-0 z-40">
             <TabsTrigger value="overview" className="text-xs py-2 data-[state=active]:bg-slate-800">Overview</TabsTrigger>
             <TabsTrigger value="ops" className="text-xs py-2 data-[state=active]:bg-slate-800">Operations</TabsTrigger>
             <TabsTrigger value="roles" className="text-xs py-2 data-[state=active]:bg-slate-800">Roles</TabsTrigger>
