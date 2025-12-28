@@ -17,10 +17,30 @@ import {
   type RosterSlot,
   type WoundTag,
   type BetrayalRisk,
+  type MasteryState,
+  type TrialState,
+  type LearningStyle,
+  type ArchetypeId,
+  type RivalId,
+  type CultureRegion,
   ROLE_NAMES, 
   TIER_TITLES,
   STAFF_ROLES 
 } from "@shared/schema";
+import {
+  type Question,
+  INITIAL_MASTERY,
+  DEFAULT_TRIAL_CONFIG,
+  getTimerForMastery,
+  buildEncounterPool,
+  selectQuestionsForExchange,
+  getAllQuestions,
+  LORE_QUESTIONS,
+  DOCTRINE_QUESTIONS,
+  PATTERN_QUESTIONS,
+  ETHICS_QUESTIONS,
+  RIVAL_QUESTIONS,
+} from "./quiz-data";
 import { RIVALS, ALL_NPCS } from "./world-data";
 import { generateContract, resolveLane, type LaneResult } from "./contract-data";
 import { generateEnemy, rollWoundTag, calculateCrowdFavorChange } from "./combat-data";
@@ -57,6 +77,27 @@ const INITIAL_ARMY: ArmyState = {
   readiness: 50,
   supply: 50,
   discipline: 50
+};
+
+const INITIAL_MASTERY_STATE: MasteryState = {
+  archetypes: {
+    BRUISER: 0,
+    SKIRMISHER: 0,
+    HEXER: 0,
+    SHIELDBEARER: 0,
+    SNARER: 0,
+    DUELIST: 0,
+    SWARM: 0
+  },
+  rivals: {
+    VAREN: 0,
+    SABLE: 0,
+    KORRATH: 0,
+    MISTVEIL: 0
+  },
+  questionsAnswered: {},
+  totalExchanges: 0,
+  totalCorrect: 0
 };
 
 const INITIAL_WORLD_STATE: WorldState = {
@@ -116,6 +157,11 @@ const INITIAL_STATE: GameState = {
   fieldTeamIds: [],
   fieldTeamMaxSize: 4,
   army: INITIAL_ARMY,
+  // Part 8: Tactical Trials
+  mastery: INITIAL_MASTERY_STATE,
+  trial: undefined,
+  learningStyle: undefined,
+  learningStyleCompleted: false,
 };
 
 // === SAFE MIGRATION ===
@@ -144,6 +190,12 @@ function migrateState(oldState: any): GameState {
   migrated.fieldTeamIds = oldState.fieldTeamIds || [];
   migrated.fieldTeamMaxSize = oldState.fieldTeamMaxSize || 4;
   migrated.army = oldState.army || INITIAL_ARMY;
+  
+  // Part 8: Tactical Trials
+  migrated.mastery = oldState.mastery || INITIAL_MASTERY_STATE;
+  migrated.trial = oldState.trial || undefined;
+  migrated.learningStyle = oldState.learningStyle || undefined;
+  migrated.learningStyleCompleted = oldState.learningStyleCompleted || false;
   
   // Migrate recruited NPCs to roster if needed
   if (oldState.world?.recruitedNpcs?.length > 0 && (!migrated.roster || migrated.roster.length === 0)) {
@@ -1106,6 +1158,273 @@ export class GameEngine {
     });
     this.log("DEBUG", `Added resources`, "SYSTEM");
     this.save();
+  }
+
+  // === TACTICAL TRIALS (Quiz Combat) ===
+
+  public setLearningStyle(style: LearningStyle) {
+    this.state.learningStyle = style;
+    this.state.learningStyleCompleted = true;
+    this.log("SYSTEM", "Learning style assessment completed.", "SYSTEM");
+    this.save();
+  }
+
+  public getMastery(): MasteryState {
+    return this.state.mastery || INITIAL_MASTERY_STATE;
+  }
+
+  public getArchetypeMastery(archetype: ArchetypeId): number {
+    const mastery = this.getMastery();
+    return mastery.archetypes[archetype] || 0;
+  }
+
+  public getRivalMastery(rivalId: RivalId): number {
+    const mastery = this.getMastery();
+    return mastery.rivals[rivalId] || 0;
+  }
+
+  public getTimerForEncounter(archetype: ArchetypeId, rivalId?: RivalId): number {
+    const mastery = rivalId 
+      ? this.getRivalMastery(rivalId)
+      : this.getArchetypeMastery(archetype);
+    
+    // Apply learning style modifier
+    let baseTimer = getTimerForMastery(mastery);
+    if (this.state.learningStyle?.untimed) {
+      baseTimer += 4; // Extra time for untimed preference
+    }
+    
+    return baseTimer;
+  }
+
+  public startTrial(
+    archetype: ArchetypeId,
+    options: {
+      rivalId?: RivalId;
+      culture?: CultureRegion;
+      isPitFight?: boolean;
+      isRivalFight?: boolean;
+    } = {}
+  ): Question[] {
+    const mastery = this.getMastery();
+    const rivalStage = options.rivalId ? this.getRivalStage(options.rivalId) : 0;
+    
+    // Build question pool
+    const pool = buildEncounterPool(
+      archetype,
+      options.culture,
+      options.rivalId,
+      rivalStage,
+      mastery
+    );
+    
+    // Select questions for first exchange
+    const questions = selectQuestionsForExchange(pool, DEFAULT_TRIAL_CONFIG.questionsPerExchange);
+    const timer = this.getTimerForEncounter(archetype, options.rivalId);
+    
+    // Initialize trial state
+    const trial: TrialState = {
+      active: true,
+      archetype,
+      rivalId: options.rivalId,
+      culture: options.culture,
+      currentExchange: 1,
+      totalExchanges: 3,
+      questionsInExchange: questions.length,
+      currentQuestionIndex: 0,
+      correctInExchange: 0,
+      damage: 0,
+      timer,
+      questionIds: questions.map(q => q.id),
+      isPitFight: options.isPitFight,
+      isRivalFight: options.isRivalFight,
+    };
+    
+    this.state.trial = trial;
+    this.log("COMBAT", `Tactical Trial began against ${archetype}${options.rivalId ? ` (${options.rivalId})` : ''}`, "COMBAT");
+    this.save();
+    
+    return questions;
+  }
+
+  public getTrialQuestions(): Question[] {
+    if (!this.state.trial?.questionIds) return [];
+    const allQuestions = getAllQuestions();
+    return this.state.trial.questionIds
+      .map(id => allQuestions.find(q => q.id === id))
+      .filter((q): q is Question => q !== undefined);
+  }
+
+  public getCurrentTrialQuestion(): Question | null {
+    if (!this.state.trial?.active) return null;
+    const questions = this.getTrialQuestions();
+    return questions[this.state.trial.currentQuestionIndex] || null;
+  }
+
+  public answerTrialQuestion(answerIndex: number): {
+    correct: boolean;
+    damage: number;
+    exchangeComplete: boolean;
+    trialComplete: boolean;
+    victory: boolean;
+    injury: boolean;
+  } {
+    if (!this.state.trial?.active) {
+      return { correct: false, damage: 0, exchangeComplete: false, trialComplete: true, victory: false, injury: false };
+    }
+
+    const question = this.getCurrentTrialQuestion();
+    if (!question) {
+      return { correct: false, damage: this.state.trial.damage, exchangeComplete: false, trialComplete: true, victory: false, injury: false };
+    }
+
+    // -1 means timeout (no answer given)
+    const correct = answerIndex >= 0 && answerIndex === question.correctIndex;
+    const mastery = this.getMastery();
+    
+    // Update mastery tracking
+    if (!mastery.questionsAnswered[question.id]) {
+      mastery.questionsAnswered[question.id] = 0;
+    }
+    if (correct) {
+      mastery.questionsAnswered[question.id]++;
+      mastery.totalCorrect++;
+      this.state.trial.correctInExchange++;
+    } else {
+      // Take damage on wrong answer
+      const damageAmount = 15;
+      this.state.trial.damage += damageAmount;
+    }
+
+    // Move to next question
+    this.state.trial.currentQuestionIndex++;
+    
+    // Check if exchange is complete
+    const exchangeComplete = this.state.trial.currentQuestionIndex >= this.state.trial.questionsInExchange;
+    let trialComplete = false;
+    let victory = false;
+    let injury = false;
+
+    if (exchangeComplete) {
+      mastery.totalExchanges++;
+      
+      // Update archetype mastery based on performance
+      const performance = this.state.trial.correctInExchange / this.state.trial.questionsInExchange;
+      const archetype = this.state.trial.archetype!;
+      const masteryGain = Math.round(performance * 10);
+      mastery.archetypes[archetype] = Math.min(100, (mastery.archetypes[archetype] || 0) + masteryGain);
+      
+      // Update rival mastery if applicable
+      if (this.state.trial.rivalId) {
+        mastery.rivals[this.state.trial.rivalId] = Math.min(100, (mastery.rivals[this.state.trial.rivalId] || 0) + masteryGain);
+      }
+      
+      // Check for injury thresholds
+      if (this.state.trial.damage >= 75) {
+        injury = true;
+        this.applyTrialInjury(3);
+      } else if (this.state.trial.damage >= 50) {
+        injury = true;
+        this.applyTrialInjury(2);
+      } else if (this.state.trial.damage >= 25) {
+        injury = true;
+        this.applyTrialInjury(1);
+      }
+
+      // Check if trial complete
+      if (this.state.trial.damage >= 100 || this.state.trial.currentExchange >= this.state.trial.totalExchanges) {
+        trialComplete = true;
+        victory = this.state.trial.damage < 100;
+        this.endTrial(victory);
+      } else {
+        // Start next exchange
+        this.state.trial.currentExchange++;
+        this.state.trial.currentQuestionIndex = 0;
+        this.state.trial.correctInExchange = 0;
+        
+        // Get new questions for next exchange
+        const pool = buildEncounterPool(
+          this.state.trial.archetype!,
+          this.state.trial.culture,
+          this.state.trial.rivalId,
+          this.state.trial.rivalId ? this.getRivalStage(this.state.trial.rivalId) : 0,
+          mastery
+        );
+        const newQuestions = selectQuestionsForExchange(pool, DEFAULT_TRIAL_CONFIG.questionsPerExchange);
+        this.state.trial.questionIds = newQuestions.map(q => q.id);
+        this.state.trial.questionsInExchange = newQuestions.length;
+      }
+    }
+
+    this.state.mastery = mastery;
+    this.save();
+
+    return { 
+      correct, 
+      damage: this.state.trial?.damage || 0, 
+      exchangeComplete, 
+      trialComplete, 
+      victory,
+      injury
+    };
+  }
+
+  private applyTrialInjury(level: number) {
+    if (!this.state.injury) {
+      this.state.injury = { level: 0, woundTag: null };
+    }
+    if (level > this.state.injury.level) {
+      this.state.injury.level = level;
+      this.state.injury.woundTag = rollWoundTag();
+      this.log("COMBAT", `Sustained injury level ${level}: ${this.state.injury.woundTag}`, "COMBAT");
+    }
+  }
+
+  private endTrial(victory: boolean) {
+    if (!this.state.trial) return;
+    
+    const archetype = this.state.trial.archetype;
+    const rivalId = this.state.trial.rivalId;
+    
+    if (victory) {
+      // Rewards
+      this.state.resources.roleTokens++;
+      this.state.resources.renown += 5;
+      
+      if (this.state.trial.isPitFight) {
+        this.state.resources.leverage += 10;
+        this.log("COMBAT", `Victory in the pit! Gained role token, renown, and leverage.`, "COMBAT");
+      } else if (this.state.trial.isRivalFight && rivalId) {
+        this.state.counters.proofChains++;
+        this.log("COMBAT", `Victory against ${rivalId}! Gained proof chain.`, "COMBAT");
+      } else {
+        this.log("COMBAT", `Victory against ${archetype}! Gained role token and renown.`, "COMBAT");
+      }
+    } else {
+      this.log("COMBAT", `Escaped from combat with ${archetype}. Injury sustained.`, "COMBAT");
+    }
+    
+    this.state.trial = undefined;
+    this.save();
+  }
+
+  public abandonTrial() {
+    if (!this.state.trial) return;
+    
+    // Apply escape penalty
+    this.applyTrialInjury(1);
+    this.log("COMBAT", "Fled from combat.", "COMBAT");
+    
+    this.state.trial = undefined;
+    this.save();
+  }
+
+  public isTrialActive(): boolean {
+    return !!this.state.trial?.active;
+  }
+
+  public getTrialState(): TrialState | undefined {
+    return this.state.trial;
   }
 }
 

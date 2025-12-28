@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -6,53 +6,132 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useGameState } from "@/hooks/use-game-state";
 import { 
-  ArrowLeft, Sword, Shield, Footprints, Link2, Sparkles, Eye, Flag,
-  Heart, Flame, Users, Trophy, AlertTriangle, Activity
+  ArrowLeft, Sword, Trophy, Activity, Timer, Brain,
+  CheckCircle, XCircle, Shield, Zap, Target, BookOpen
 } from "lucide-react";
-import { COMBAT_MOVES, STANCES, RITE_CATEGORIES } from "@shared/schema";
-import { RITES, SPONSORS, POSITION_NAMES } from "@/lib/combat-data";
-import type { CombatMove, Stance, RiteType } from "@shared/schema";
+import type { ArchetypeId, RivalId, CultureRegion } from "@shared/schema";
 
-const MOVE_ICONS: Record<CombatMove, typeof Sword> = {
-  STRIKE: Sword,
-  GUARD: Shield,
-  STEP: Footprints,
-  BIND: Link2,
-  INVOKE: Sparkles,
-  FEINT: Eye,
-  RALLY: Flag,
-};
+const ARCHETYPES: { id: ArchetypeId; name: string; description: string }[] = [
+  { id: "BRUISER", name: "Bruiser", description: "Heavy hitters. Predictable but punishing." },
+  { id: "SKIRMISHER", name: "Skirmisher", description: "Mobile fighters. Test positioning knowledge." },
+  { id: "HEXER", name: "Hexer", description: "Magical threats. Require rite awareness." },
+  { id: "SHIELDBEARER", name: "Shieldbearer", description: "Defensive. Need patience and tactics." },
+  { id: "SNARER", name: "Snarer", description: "Control specialists. Test escape routes." },
+  { id: "DUELIST", name: "Duelist", description: "Precise fighters. Punish mistakes." },
+  { id: "SWARM", name: "Swarm", description: "Multiple foes. Area control matters." },
+];
+
+const RIVALS: { id: RivalId; name: string; description: string }[] = [
+  { id: "VAREN", name: "Varen the Collector", description: "Information broker. Knows your secrets." },
+  { id: "SABLE", name: "Sable Thornwick", description: "Guild enforcer. Questions honor and law." },
+  { id: "KORRATH", name: "Korrath Ironhand", description: "Mercenary captain. Tests tactical doctrine." },
+  { id: "MISTVEIL", name: "The Mistveil", description: "Mysterious operative. Probes cultural knowledge." },
+];
+
+const CULTURES: { id: CultureRegion; name: string }[] = [
+  { id: "COASTAL", name: "Coastal Lowlands" },
+  { id: "RIVER_BASIN", name: "River Basin" },
+  { id: "HIGHLAND", name: "Highland Plateau" },
+  { id: "FOREST", name: "Forest Interior" },
+  { id: "ARID", name: "Arid Frontier" },
+];
 
 export default function Combat() {
   const { state, actions } = useGameState();
-  const [selectedMove, setSelectedMove] = useState<CombatMove | null>(null);
-  const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
-  const [dirtyTactic, setDirtyTactic] = useState(false);
-  const [selectedRite, setSelectedRite] = useState<RiteType | null>(null);
-  const [lastResult, setLastResult] = useState<string | null>(null);
+  const [selectedArchetype, setSelectedArchetype] = useState<ArchetypeId | null>(null);
+  const [selectedRival, setSelectedRival] = useState<RivalId | null>(null);
+  const [selectedCulture, setSelectedCulture] = useState<CultureRegion | null>(null);
+  const [isPitFight, setIsPitFight] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(15);
+  const [lastResult, setLastResult] = useState<{ correct: boolean; message: string } | null>(null);
+  const [showExchangeComplete, setShowExchangeComplete] = useState(false);
 
-  const combat = state.combat;
+  const trial = state.trial;
   const injury = state.injury || { level: 0, woundTag: null };
-  const stanceMastery = state.stanceMastery || {};
-
-  const handleStartCombat = (isPit: boolean) => {
-    actions.startCombat(isPit, 3, !isPit);
+  const mastery = state.mastery || {
+    archetypes: { BRUISER: 0, SKIRMISHER: 0, HEXER: 0, SHIELDBEARER: 0, SNARER: 0, DUELIST: 0, SWARM: 0 },
+    rivals: { VAREN: 0, SABLE: 0, KORRATH: 0, MISTVEIL: 0 },
+    questionsAnswered: {},
+    totalExchanges: 0,
+    totalCorrect: 0
   };
 
-  const handleExecuteMove = () => {
-    if (!selectedMove) return;
-    const result = actions.executeCombatMove(selectedMove, selectedTarget || undefined, dirtyTactic);
-    if (result) {
-      setLastResult(result.narrative);
+  const currentQuestion = trial?.active ? actions.getCurrentTrialQuestion() : null;
+
+  const handleStartTrial = useCallback(() => {
+    if (!selectedArchetype) return;
+    
+    actions.startTrial(selectedArchetype, {
+      rivalId: selectedRival || undefined,
+      culture: selectedCulture || undefined,
+      isPitFight,
+      isRivalFight: !!selectedRival,
+    });
+    
+    setTimeRemaining(trial?.timer || 15);
+    setLastResult(null);
+    setShowExchangeComplete(false);
+  }, [selectedArchetype, selectedRival, selectedCulture, isPitFight, actions, trial?.timer]);
+
+  const handleAnswer = useCallback((answerIndex: number) => {
+    const result = actions.answerTrialQuestion(answerIndex);
+    
+    setLastResult({
+      correct: result.correct,
+      message: result.correct ? "Correct!" : "Wrong! Damage taken."
+    });
+
+    if (result.exchangeComplete && !result.trialComplete) {
+      setShowExchangeComplete(true);
+      setTimeout(() => setShowExchangeComplete(false), 2000);
     }
-    setSelectedMove(null);
-    setSelectedTarget(null);
-    setDirtyTactic(false);
-  };
+
+    if (result.trialComplete) {
+      setSelectedArchetype(null);
+      setSelectedRival(null);
+      setSelectedCulture(null);
+    } else {
+      const newTrial = actions.getTrialState();
+      setTimeRemaining(newTrial?.timer || 15);
+    }
+  }, [actions]);
+
+  const handleAbandon = useCallback(() => {
+    actions.abandonTrial();
+    setSelectedArchetype(null);
+    setSelectedRival(null);
+    setSelectedCulture(null);
+    setLastResult(null);
+  }, [actions]);
 
   const handleHeal = (method: "REST" | "CLINIC" | "RITE") => {
     actions.heal(method);
   };
+
+  useEffect(() => {
+    if (!trial?.active || !currentQuestion) return;
+
+    const timer = setInterval(() => {
+      setTimeRemaining(prev => {
+        if (prev <= 1) {
+          const trialStillActive = actions.isTrialActive();
+          if (trialStillActive) {
+            handleAnswer(-1);
+          }
+          return trial.timer;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [trial?.active, currentQuestion, handleAnswer, trial?.timer, actions]);
+
+  useEffect(() => {
+    if (trial?.active) {
+      setTimeRemaining(trial.timer);
+    }
+  }, [trial?.active, trial?.timer, trial?.currentQuestionIndex]);
 
   return (
     <div className="min-h-screen bg-background p-4 max-w-lg mx-auto">
@@ -62,10 +141,9 @@ export default function Combat() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <h1 className="text-xl font-bold">Combat Arena</h1>
+        <h1 className="text-xl font-bold">Tactical Trials</h1>
       </div>
 
-      {/* Injury Status */}
       <Card className="mb-4">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
@@ -99,249 +177,248 @@ export default function Combat() {
         </CardContent>
       </Card>
 
-      {!combat?.active ? (
+      {!trial?.active ? (
         <>
-          {/* Start Combat Options */}
           <Card className="mb-4">
             <CardHeader>
-              <CardTitle>Enter Combat</CardTitle>
-              <CardDescription>Choose your arena</CardDescription>
+              <CardTitle>Begin Trial</CardTitle>
+              <CardDescription>
+                Test your knowledge against enemy archetypes. Answer questions to overcome foes.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              <Button onClick={() => handleStartCombat(false)} data-testid="button-start-combat">
-                <Sword className="h-4 w-4 mr-2" />
-                Field Encounter (Public)
-              </Button>
-              <Button variant="secondary" onClick={() => handleStartCombat(true)} data-testid="button-start-pit">
-                <Trophy className="h-4 w-4 mr-2" />
-                Pit Fight (Crowd Favor)
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Stance Mastery */}
-          <Card className="mb-4">
-            <CardHeader>
-              <CardTitle className="text-sm">Stance Mastery</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-2">
-                {(Object.keys(STANCES) as Stance[]).map(stance => (
-                  <div key={stance} className="flex items-center gap-2">
-                    <Badge variant={stanceMastery[stance] ? "default" : "outline"} className="text-xs">
-                      {STANCES[stance].name}
-                    </Badge>
-                    {stanceMastery[stance] && <span className="text-xs text-green-600">Mastered</span>}
-                  </div>
-                ))}
+            <CardContent className="space-y-4">
+              <div>
+                <span className="text-xs font-semibold text-muted-foreground">Enemy Archetype</span>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  {ARCHETYPES.map(arch => {
+                    const archMastery = mastery.archetypes[arch.id] || 0;
+                    return (
+                      <Button
+                        key={arch.id}
+                        size="sm"
+                        variant={selectedArchetype === arch.id ? "default" : "outline"}
+                        onClick={() => setSelectedArchetype(arch.id)}
+                        className="flex-col h-auto py-2 items-start"
+                        data-testid={`archetype-${arch.id}`}
+                      >
+                        <div className="flex items-center gap-1 w-full justify-between">
+                          <span className="font-medium">{arch.name}</span>
+                          <Badge variant="secondary" className="text-xs">{archMastery}%</Badge>
+                        </div>
+                      </Button>
+                    );
+                  })}
+                </div>
               </div>
+
+              <div>
+                <span className="text-xs font-semibold text-muted-foreground">Rival Challenge (Optional)</span>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  {RIVALS.map(rival => {
+                    const rivalMastery = mastery.rivals[rival.id] || 0;
+                    return (
+                      <Button
+                        key={rival.id}
+                        size="sm"
+                        variant={selectedRival === rival.id ? "default" : "outline"}
+                        onClick={() => setSelectedRival(selectedRival === rival.id ? null : rival.id)}
+                        className="flex-col h-auto py-2 items-start"
+                        data-testid={`rival-${rival.id}`}
+                      >
+                        <div className="flex items-center gap-1 w-full justify-between">
+                          <span className="font-medium text-xs">{rival.name}</span>
+                          <Badge variant="secondary" className="text-xs">{rivalMastery}%</Badge>
+                        </div>
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <span className="text-xs font-semibold text-muted-foreground">Cultural Context (Optional)</span>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {CULTURES.map(culture => (
+                    <Button
+                      key={culture.id}
+                      size="sm"
+                      variant={selectedCulture === culture.id ? "default" : "outline"}
+                      onClick={() => setSelectedCulture(selectedCulture === culture.id ? null : culture.id)}
+                      data-testid={`culture-${culture.id}`}
+                    >
+                      {culture.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant={isPitFight ? "default" : "outline"}
+                  onClick={() => setIsPitFight(!isPitFight)}
+                  data-testid="toggle-pit-fight"
+                >
+                  <Trophy className="h-4 w-4 mr-1" />
+                  Pit Fight
+                </Button>
+                {isPitFight && (
+                  <span className="text-xs text-muted-foreground">+Leverage on victory</span>
+                )}
+              </div>
+
+              <Button
+                className="w-full"
+                disabled={!selectedArchetype}
+                onClick={handleStartTrial}
+                data-testid="button-start-trial"
+              >
+                <Sword className="h-4 w-4 mr-2" />
+                Begin Trial
+              </Button>
             </CardContent>
           </Card>
 
-          {/* Rites Reference */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Rites Reference</CardTitle>
+              <CardTitle className="text-sm flex items-center gap-2">
+                <BookOpen className="h-4 w-4" />
+                Mastery Overview
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {(Object.keys(RITE_CATEGORIES) as RiteType[]).map(cat => (
-                  <div key={cat}>
-                    <span className="text-xs font-semibold text-muted-foreground">{RITE_CATEGORIES[cat].name}</span>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {RITES.filter(r => r.category === cat).map(rite => (
-                        <Badge key={rite.id} variant="outline" className="text-xs">
-                          {rite.name}
-                        </Badge>
-                      ))}
+                <div>
+                  <span className="text-xs font-semibold text-muted-foreground">Total Stats</span>
+                  <div className="flex gap-4 mt-1">
+                    <div className="text-center">
+                      <div className="text-lg font-bold">{mastery.totalExchanges}</div>
+                      <div className="text-xs text-muted-foreground">Exchanges</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold">{mastery.totalCorrect}</div>
+                      <div className="text-xs text-muted-foreground">Correct</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold">
+                        {mastery.totalExchanges > 0 
+                          ? Math.round((mastery.totalCorrect / (mastery.totalExchanges * 4)) * 100)
+                          : 0}%
+                      </div>
+                      <div className="text-xs text-muted-foreground">Accuracy</div>
                     </div>
                   </div>
-                ))}
+                </div>
               </div>
             </CardContent>
           </Card>
         </>
       ) : (
         <>
-          {/* Active Combat */}
           <Card className="mb-4">
             <CardHeader className="pb-2">
               <div className="flex justify-between items-center">
-                <CardTitle className="text-sm">Turn {combat.turn}</CardTitle>
-                {combat.isPitFight && (
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    <span className="text-sm">Crowd: {combat.crowdFavor}%</span>
-                  </div>
-                )}
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Target className="h-4 w-4" />
+                  Exchange {trial.currentExchange}/{trial.totalExchanges}
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <Timer className="h-4 w-4" />
+                  <span className={`text-sm font-mono ${timeRemaining <= 5 ? "text-red-500" : ""}`}>
+                    {timeRemaining}s
+                  </span>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
+              <div className="mb-4">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs text-muted-foreground">Damage Taken</span>
+                  <span className="text-xs font-medium">{trial.damage}/100</span>
+                </div>
+                <Progress 
+                  value={trial.damage} 
+                  className="h-2" 
+                />
+                {trial.damage >= 75 && (
+                  <span className="text-xs text-red-500">Critical damage! One more mistake and you escape.</span>
+                )}
+              </div>
+
+              <div className="flex justify-between mb-2">
+                <span className="text-xs text-muted-foreground">
+                  Question {trial.currentQuestionIndex + 1}/{trial.questionsInExchange}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {trial.correctInExchange} correct
+                </span>
+              </div>
+
               {lastResult && (
-                <div className="bg-muted p-2 rounded mb-3 text-sm">{lastResult}</div>
-              )}
-
-              {/* Allies */}
-              <div className="mb-4">
-                <span className="text-xs font-semibold text-muted-foreground">Your Team</span>
-                <div className="space-y-2 mt-1">
-                  {combat.allies.map(ally => (
-                    <div key={ally.id} className="flex items-center justify-between bg-green-500/10 p-2 rounded">
-                      <div className="flex items-center gap-2">
-                        <Heart className="h-4 w-4 text-green-600" />
-                        <span className="text-sm font-medium">{ally.name}</span>
-                        <Badge variant="outline" className="text-xs">{POSITION_NAMES[ally.position]}</Badge>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs">{ally.hp}/{ally.maxHp}</span>
-                        <Badge variant="secondary" className="text-xs">{ally.stance}</Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Enemies */}
-              <div className="mb-4">
-                <span className="text-xs font-semibold text-muted-foreground">Enemies</span>
-                <div className="space-y-2 mt-1">
-                  {combat.enemies.map(enemy => (
-                    <div 
-                      key={enemy.id} 
-                      className={`flex items-center justify-between p-2 rounded cursor-pointer transition-colors ${
-                        selectedTarget === enemy.id ? "bg-red-500/30" : "bg-red-500/10"
-                      }`}
-                      onClick={() => setSelectedTarget(enemy.id)}
-                      data-testid={`enemy-${enemy.id}`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Flame className="h-4 w-4 text-red-600" />
-                        <span className="text-sm font-medium">{enemy.name}</span>
-                        <Badge variant="outline" className="text-xs">{enemy.archetype}</Badge>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs">{enemy.hp}/{enemy.maxHp}</span>
-                        <Badge variant="destructive" className="text-xs">{POSITION_NAMES[enemy.position]}</Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Stance Selection */}
-              <div className="mb-4">
-                <span className="text-xs font-semibold text-muted-foreground">Stance</span>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {(Object.keys(STANCES) as Stance[]).map(stance => {
-                    const player = combat.allies.find(a => a.id === "player_kami");
-                    return (
-                      <Button
-                        key={stance}
-                        size="sm"
-                        variant={player?.stance === stance ? "default" : "outline"}
-                        onClick={() => actions.changeStance(stance)}
-                        data-testid={`stance-${stance}`}
-                      >
-                        {STANCES[stance].name}
-                      </Button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Move Selection */}
-              <div className="mb-4">
-                <span className="text-xs font-semibold text-muted-foreground">Moves</span>
-                <div className="grid grid-cols-2 gap-2 mt-1">
-                  {(Object.keys(COMBAT_MOVES) as CombatMove[]).map(move => {
-                    const Icon = MOVE_ICONS[move];
-                    return (
-                      <Button
-                        key={move}
-                        size="sm"
-                        variant={selectedMove === move ? "default" : "outline"}
-                        onClick={() => setSelectedMove(move)}
-                        className="justify-start"
-                        data-testid={`move-${move}`}
-                      >
-                        <Icon className="h-4 w-4 mr-2" />
-                        {COMBAT_MOVES[move].name}
-                      </Button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Dirty Tactic Toggle */}
-              {(selectedMove === "FEINT" || selectedMove === "BIND" || selectedMove === "INVOKE") && (
-                <div className="flex items-center gap-2 mb-4">
-                  <Button
-                    size="sm"
-                    variant={dirtyTactic ? "destructive" : "outline"}
-                    onClick={() => setDirtyTactic(!dirtyTactic)}
-                    data-testid="toggle-dirty"
-                  >
-                    <AlertTriangle className="h-4 w-4 mr-2" />
-                    {dirtyTactic ? "Dirty Tactic ON" : "Dirty Tactic OFF"}
-                  </Button>
-                  {dirtyTactic && combat.publicEncounter && (
-                    <span className="text-xs text-red-500">-5 Legitimacy, +5 Heat</span>
+                <div className={`flex items-center gap-2 p-2 rounded mb-3 ${
+                  lastResult.correct ? "bg-green-500/10" : "bg-red-500/10"
+                }`}>
+                  {lastResult.correct ? (
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <XCircle className="h-4 w-4 text-red-600" />
                   )}
+                  <span className="text-sm">{lastResult.message}</span>
                 </div>
               )}
 
-              {/* Execute Button */}
-              <Button 
-                className="w-full" 
-                disabled={!selectedMove}
-                onClick={handleExecuteMove}
-                data-testid="button-execute"
-              >
-                Execute {selectedMove ? COMBAT_MOVES[selectedMove].name : "Move"}
-              </Button>
-
-              <Button 
-                variant="ghost" 
-                className="w-full mt-2"
-                onClick={() => actions.endCombat(false)}
-                data-testid="button-flee"
-              >
-                Flee (Escape with Injury)
-              </Button>
+              {showExchangeComplete && (
+                <div className="flex items-center gap-2 p-3 rounded mb-3 bg-blue-500/10">
+                  <Zap className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium">Exchange complete! Next round...</span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* Pit Fight Sponsors */}
-          {combat.isPitFight && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Pit Sponsors</CardTitle>
+          {currentQuestion && (
+            <Card className="mb-4">
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <Brain className="h-4 w-4" />
+                  <Badge variant="outline" className="text-xs">{currentQuestion.category}</Badge>
+                  {currentQuestion.archetype && (
+                    <Badge variant="secondary" className="text-xs">{currentQuestion.archetype}</Badge>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
+                <p className="text-sm mb-4" data-testid="question-text">{currentQuestion.text}</p>
+                
                 <div className="space-y-2">
-                  {SPONSORS.map(sponsor => {
-                    const favor = state.pitSponsorFavor?.[sponsor.id] || 0;
-                    return (
-                      <div key={sponsor.id} className="flex items-center justify-between">
-                        <div>
-                          <span className="text-sm font-medium">{sponsor.name}</span>
-                          {sponsor.prefersGrayPlay && (
-                            <Badge variant="outline" className="ml-2 text-xs">Gray</Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">Favor: {favor}%</span>
-                          {sponsor.offersStaffHire && (
-                            <Badge className="text-xs">Offers Staff</Badge>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {currentQuestion.options.map((answer: string, index: number) => (
+                    <Button
+                      key={index}
+                      variant="outline"
+                      className="w-full justify-start text-left h-auto py-3 px-4"
+                      onClick={() => handleAnswer(index)}
+                      data-testid={`answer-${index}`}
+                    >
+                      <span className="font-mono mr-2 text-muted-foreground">
+                        {String.fromCharCode(65 + index)}.
+                      </span>
+                      {answer}
+                    </Button>
+                  ))}
                 </div>
               </CardContent>
             </Card>
           )}
+
+          <Button 
+            variant="ghost" 
+            className="w-full"
+            onClick={handleAbandon}
+            data-testid="button-flee"
+          >
+            <Shield className="h-4 w-4 mr-2" />
+            Flee (Escape with Minor Injury)
+          </Button>
         </>
       )}
     </div>

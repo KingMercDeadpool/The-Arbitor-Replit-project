@@ -8,7 +8,11 @@ import type {
   ApproachLane,
   StaffRole,
   RosterSlot,
-  BetrayalRisk
+  BetrayalRisk,
+  ArchetypeId,
+  RivalId,
+  CultureRegion,
+  LearningStyle
 } from "@shared/schema";
 
 export function useGameState() {
@@ -86,6 +90,26 @@ export function useGameState() {
       getBetrayalRisk: (npcId: string): BetrayalRisk => engine.getBetrayalRisk(npcId),
       applyBetrayalPrevention: (npcId: string, method: "PAY" | "OATH" | "TRANSPARENCY" | "ROTATE") =>
         engine.applyBetrayalPrevention(npcId, method),
+
+      // Part 8: Tactical Trials
+      setLearningStyle: (style: LearningStyle) => engine.setLearningStyle(style),
+      getMastery: () => engine.getMastery(),
+      getArchetypeMastery: (archetype: ArchetypeId) => engine.getArchetypeMastery(archetype),
+      getRivalMastery: (rivalId: RivalId) => engine.getRivalMastery(rivalId),
+      getTimerForEncounter: (archetype: ArchetypeId, rivalId?: RivalId) => 
+        engine.getTimerForEncounter(archetype, rivalId),
+      startTrial: (archetype: ArchetypeId, options?: {
+        rivalId?: RivalId;
+        culture?: CultureRegion;
+        isPitFight?: boolean;
+        isRivalFight?: boolean;
+      }) => engine.startTrial(archetype, options),
+      getTrialQuestions: () => engine.getTrialQuestions(),
+      getCurrentTrialQuestion: () => engine.getCurrentTrialQuestion(),
+      answerTrialQuestion: (answerIndex: number) => engine.answerTrialQuestion(answerIndex),
+      abandonTrial: () => engine.abandonTrial(),
+      isTrialActive: () => engine.isTrialActive(),
+      getTrialState: () => engine.getTrialState(),
     }
   };
 }

@@ -319,6 +319,52 @@ export const armyStateSchema = z.object({
 
 export const betrayalRiskSchema = z.enum(["LOW", "MEDIUM", "HIGH"]);
 
+// === PART 8: TACTICAL TRIALS (Quiz Combat) ===
+
+export const archetypeIdSchema = z.enum([
+  "BRUISER", "SKIRMISHER", "HEXER", "SHIELDBEARER", "SNARER", "DUELIST", "SWARM"
+]);
+
+export const rivalIdSchema = z.enum(["VAREN", "SABLE", "KORRATH", "MISTVEIL"]);
+
+export const cultureRegionSchema = z.enum([
+  "COASTAL", "RIVER_BASIN", "HIGHLAND", "FOREST", "ARID"
+]);
+
+export const learningStyleSchema = z.object({
+  conceptual: z.boolean().optional(),
+  sequential: z.boolean().optional(),
+  analytical: z.boolean().optional(),
+  untimed: z.boolean().optional(),
+  observational: z.boolean().optional(),
+  practical: z.boolean().optional(),
+});
+
+export const masteryStateSchema = z.object({
+  archetypes: z.record(archetypeIdSchema, z.number()),
+  rivals: z.record(rivalIdSchema, z.number()),
+  questionsAnswered: z.record(z.string(), z.number()),
+  totalExchanges: z.number(),
+  totalCorrect: z.number(),
+});
+
+export const trialStateSchema = z.object({
+  active: z.boolean(),
+  archetype: archetypeIdSchema.optional(),
+  rivalId: rivalIdSchema.optional(),
+  culture: cultureRegionSchema.optional(),
+  currentExchange: z.number(),
+  totalExchanges: z.number(),
+  questionsInExchange: z.number(),
+  currentQuestionIndex: z.number(),
+  correctInExchange: z.number(),
+  damage: z.number(), // 0-100, triggers injury at thresholds
+  timer: z.number(),
+  questionIds: z.array(z.string()),
+  isPitFight: z.boolean().optional(),
+  isRivalFight: z.boolean().optional(),
+});
+
 // === NPC RELATIONSHIP STATE ===
 export const npcRelationshipStateSchema = z.record(z.string(), relationshipSchema);
 
@@ -356,6 +402,11 @@ export const gameStateSchema = z.object({
   fieldTeamIds: z.array(z.string()).optional(),
   fieldTeamMaxSize: z.number().optional(),
   army: armyStateSchema.optional(),
+  // Part 8: Tactical Trials
+  mastery: masteryStateSchema.optional(),
+  trial: trialStateSchema.optional(),
+  learningStyle: learningStyleSchema.optional(),
+  learningStyleCompleted: z.boolean().optional(),
 });
 
 // === TYPE EXPORTS ===
@@ -402,6 +453,14 @@ export type RosterSlot = z.infer<typeof rosterSlotSchema>;
 export type Recruit = z.infer<typeof recruitSchema>;
 export type ArmyState = z.infer<typeof armyStateSchema>;
 export type BetrayalRisk = z.infer<typeof betrayalRiskSchema>;
+
+// Part 8 types
+export type ArchetypeId = z.infer<typeof archetypeIdSchema>;
+export type RivalId = z.infer<typeof rivalIdSchema>;
+export type CultureRegion = z.infer<typeof cultureRegionSchema>;
+export type LearningStyle = z.infer<typeof learningStyleSchema>;
+export type MasteryState = z.infer<typeof masteryStateSchema>;
+export type TrialState = z.infer<typeof trialStateSchema>;
 
 // === CONSTANTS FOR TIERS ===
 

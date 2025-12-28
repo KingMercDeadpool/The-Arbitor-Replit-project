@@ -1,14 +1,21 @@
-# The Arbitor of the Mainland v0.7
+# The Arbitor of the Mainland v0.8
 
 ## Overview
 
-The Arbitor of the Mainland (formerly S.L.A.T.E.) is a mobile-first, text-centric fantasy strategy game. Players take on the role of Kami "The Kitsune" Reiss, a rising power broker managing four parallel role tracks: Spymaster, Commander, Steward, and Arbitor. The game focuses on resource management, contract execution, role progression, combat, roster management, and world exploration with NPC interactions.
+The Arbitor of the Mainland (formerly S.L.A.T.E.) is a mobile-first, text-centric fantasy strategy game. Players take on the role of Kami "The Kitsune" Reiss, a rising power broker managing four parallel role tracks: Spymaster, Commander, Steward, and Arbitor. The game focuses on resource management, contract execution, role progression, tactical trials (quiz combat), roster management, and world exploration with NPC interactions.
 
-**Version 0.7 Features:**
-- Combat system with injury/escape model (no permadeath)
+**Version 0.8 Features:**
+- Tactical Trials: Quiz-based combat replacing turn-based system
+- 140+ questions across 5 categories (Lore, Doctrine, Pattern, Culture, Ethics)
+- Mastery tracking per archetype (7 types) and per rival (4 major)
+- Graduated timer system (15s→8s based on mastery level)
+- Learning style preferences support
+- Safe migration from v0.7 saves
+
+**Previous Version Features (v0.7):**
 - Contract/quest engine with 3-lane approaches (Shadow/Seal/Steel)
 - Roster management with staff roles and army scaling
-- Safe migration from v0.2 saves
+- Injury/escape model (no permadeath)
 
 ## User Preferences
 
@@ -45,7 +52,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Page Structure
 - **Home** (`/`): Main dashboard with resources, contract simulator, role cards, Three Marks display, Heat/Injury meters, and activity log
-- **Combat** (`/combat`): Arena/pit fights with 7 moves, 5 stances, injury system, crowd favor
+- **Combat** (`/combat`): Tactical Trials - quiz-based combat with mastery tracking, timed questions, injury system
 - **Contracts** (`/contracts`): Active contracts with 3-lane resolution (Shadow/Seal/Steel), variety engine display
 - **Tavern** (`/tavern`): Social hub with Talk/Flirt/Fight system, recruitment opportunities
 - **Roster** (`/roster`): Field team management, staff roles with bonuses, army abstraction
@@ -56,7 +63,8 @@ Preferred communication style: Simple, everyday language.
 ### Core Data Files
 - **client/src/lib/game-engine.ts**: Central game state management with all actions
 - **client/src/lib/world-data.ts**: World geography, NPCs, settlements, districts
-- **client/src/lib/combat-data.ts**: Combat moves, stances, rites, enemy archetypes, sponsors
+- **client/src/lib/combat-data.ts**: Combat moves, stances, rites, enemy archetypes, sponsors (legacy)
+- **client/src/lib/quiz-data.ts**: Tactical Trials questions, mastery system, timer logic
 - **client/src/lib/contract-data.ts**: Contract generation, lanes, encounter types, variety engine
 
 ### World Data Structure
@@ -67,7 +75,8 @@ Preferred communication style: Simple, everyday language.
 - **5 Travelers**: Roaming NPCs that move between settlements
 - **4 Major Rivals**: Antagonists with escalation stages 0-5
 
-### Part 5: Combat System
+### Part 5: Combat System (Legacy)
+Note: Turn-based combat has been replaced by Tactical Trials in v0.8.
 - **7 Core Moves**: Strike, Guard, Step, Bind, Invoke, Feint, Rally
 - **5 Stances**: Balanced, Aggressive, Defensive, Evasive, Focused
 - **5 Rite Categories**: Evocation, Warding, Binding, Enhancing, Divining
@@ -92,6 +101,18 @@ Preferred communication style: Simple, everyday language.
 - **Army Abstraction**: Garrison 0-900, readiness/supply/discipline meters
 - **Betrayal Risk**: LOW/MEDIUM/HIGH based on relationship metrics
 - **Prevention Levers**: Pay, Oath-Sigil, Transparency, Rotate Duty
+
+### Part 8: Tactical Trials (v0.8)
+- **Quiz-Based Combat**: Knowledge tests replace turn-based moves
+- **5 Question Categories**: Lore, Doctrine, Pattern, Culture, Ethics
+- **140+ Questions**: 35+ Lore, 30 Doctrine, 35 Pattern, 15 Culture, 5 Ethics, 20 Rival-specific
+- **7 Archetypes**: Bruiser, Skirmisher, Hexer, Shieldbearer, Snarer, Duelist, Swarm
+- **4 Major Rivals**: Varen, Sable, Korrath, Mistveil (with escalation stages)
+- **Mastery System**: Per-archetype and per-rival tracking (0-100%)
+- **Graduated Timer**: 15s base → 8s floor based on mastery (15→13→11→8)
+- **Damage System**: 0-100 with injury thresholds at 25%, 50%, 75%
+- **Exchange Structure**: 3-4 questions per exchange, 3 total exchanges per trial
+- **Learning Style Preferences**: Conceptual, Sequential, Analytical, Untimed, Observational, Practical
 
 ### Special Systems
 - **Three Marks**: Orc legitimacy system (Strength, Mind, Stewardship) for world influence
