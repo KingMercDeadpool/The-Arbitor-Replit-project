@@ -37,10 +37,23 @@ Preferred communication style: Simple, everyday language.
 - **Component Library**: Extensive shadcn/ui component collection in `client/src/components/ui/`
 
 ### Page Structure
-- **Home** (`/`): Main dashboard with resources, contract simulator, role cards, and activity log
-- **World Bible** (`/world`): Biome and settlement exploration
-- **Districts** (`/districts`): District-level navigation and NPC discovery
-- **NPC Engine** (`/npcs`): NPC relationships, recruitment, and rival tracking
+- **Home** (`/`): Main dashboard with resources, contract simulator, role cards, Three Marks display, and activity log
+- **World Bible** (`/world`): Biome and settlement exploration with 5 biomes, 20 settlements, cultural traditions
+- **Districts** (`/districts`): District-level navigation, black market rules, 26 districts with ancestry/function types
+- **NPC Engine** (`/npcs`): NPC relationships (5 metrics: trust/fear/debt/leverage/standing), recruitment gating, 4 major rivals
+
+### World Data Structure (client/src/lib/world-data.ts)
+- **5 Biomes**: Coastal Lowlands, River Basin, Highland Plateau, Forest Interior, Arid Frontier
+- **20 Settlements**: Distributed across biomes with population tiers and cultural traits
+- **26 Districts**: Hybrid ancestry/function districts (Elven Enclave, Halfling Quarter, Orcish Ward, etc.)
+- **28+ Fixture NPCs**: 4-6 per district with roles (Merchant, Informant, Guard, etc.)
+- **5 Travelers**: Roaming NPCs that move between settlements
+- **4 Major Rivals**: Antagonists with escalation stages 0-5
+
+### Special Systems
+- **Three Marks**: Orc legitimacy system (Strength, Mind, Stewardship) for world influence
+- **Black Market Rules**: Exists everywhere EXCEPT Elven Enclaves and Halfling Quarters (clean hubs)
+- **Recruitment Gating**: NPCs require trust/standing thresholds, optionally role tiers, and forbidden flags
 
 ## External Dependencies
 
