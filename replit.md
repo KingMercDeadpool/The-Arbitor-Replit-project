@@ -1,8 +1,14 @@
-# S.L.A.T.E. Sandbox
+# The Arbitor of the Mainland v0.7
 
 ## Overview
 
-S.L.A.T.E. (Spy Network, Law & Order, Armies, Territory, Enterprise & Industry) is a mobile-first, text-centric fantasy strategy game prototype. Players take on the role of Kami "The Kitsune" Reiss, a rising power broker managing four parallel role tracks: Spymaster, Commander, Steward, and Arbitor. The game focuses on resource management, contract execution, role progression, and world exploration with NPC interactions.
+The Arbitor of the Mainland (formerly S.L.A.T.E.) is a mobile-first, text-centric fantasy strategy game. Players take on the role of Kami "The Kitsune" Reiss, a rising power broker managing four parallel role tracks: Spymaster, Commander, Steward, and Arbitor. The game focuses on resource management, contract execution, role progression, combat, roster management, and world exploration with NPC interactions.
+
+**Version 0.7 Features:**
+- Combat system with injury/escape model (no permadeath)
+- Contract/quest engine with 3-lane approaches (Shadow/Seal/Steel)
+- Roster management with staff roles and army scaling
+- Safe migration from v0.2 saves
 
 ## User Preferences
 
@@ -27,6 +33,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Data Storage
 - **Primary Storage**: Browser LocalStorage for game state persistence
+- **Storage Key**: `arbitor_mainland_save_v07` (migrates from `slate_sandbox_save_v2`)
 - **Schema Validation**: Zod schemas in `shared/schema.ts` for type safety
 - **Database Ready**: Drizzle ORM configured with PostgreSQL for future server-side sync (currently unused)
 
@@ -37,12 +44,22 @@ Preferred communication style: Simple, everyday language.
 - **Component Library**: Extensive shadcn/ui component collection in `client/src/components/ui/`
 
 ### Page Structure
-- **Home** (`/`): Main dashboard with resources, contract simulator, role cards, Three Marks display, and activity log
+- **Home** (`/`): Main dashboard with resources, contract simulator, role cards, Three Marks display, Heat/Injury meters, and activity log
+- **Combat** (`/combat`): Arena/pit fights with 7 moves, 5 stances, injury system, crowd favor
+- **Contracts** (`/contracts`): Active contracts with 3-lane resolution (Shadow/Seal/Steel), variety engine display
+- **Tavern** (`/tavern`): Social hub with Talk/Flirt/Fight system, recruitment opportunities
+- **Roster** (`/roster`): Field team management, staff roles with bonuses, army abstraction
 - **World Bible** (`/world`): Biome and settlement exploration with 5 biomes, 20 settlements, cultural traditions
 - **Districts** (`/districts`): District-level navigation, black market rules, 26 districts with ancestry/function types
 - **NPC Engine** (`/npcs`): NPC relationships (5 metrics: trust/fear/debt/leverage/standing), recruitment gating, 4 major rivals
 
-### World Data Structure (client/src/lib/world-data.ts)
+### Core Data Files
+- **client/src/lib/game-engine.ts**: Central game state management with all actions
+- **client/src/lib/world-data.ts**: World geography, NPCs, settlements, districts
+- **client/src/lib/combat-data.ts**: Combat moves, stances, rites, enemy archetypes, sponsors
+- **client/src/lib/contract-data.ts**: Contract generation, lanes, encounter types, variety engine
+
+### World Data Structure
 - **5 Biomes**: Coastal Lowlands, River Basin, Highland Plateau, Forest Interior, Arid Frontier
 - **20 Settlements**: Distributed across biomes with population tiers and cultural traits
 - **26 Districts**: Hybrid ancestry/function districts (Elven Enclave, Halfling Quarter, Orcish Ward, etc.)
@@ -50,10 +67,37 @@ Preferred communication style: Simple, everyday language.
 - **5 Travelers**: Roaming NPCs that move between settlements
 - **4 Major Rivals**: Antagonists with escalation stages 0-5
 
+### Part 5: Combat System
+- **7 Core Moves**: Strike, Guard, Step, Bind, Invoke, Feint, Rally
+- **5 Stances**: Balanced, Aggressive, Defensive, Evasive, Focused
+- **5 Rite Categories**: Evocation, Warding, Binding, Enhancing, Divining
+- **Injury System**: 0-5 levels + wound tag (Hexed, Limping, Scarred, Concussed, Bleeding)
+- **Pit Fights**: Crowd favor system, sponsors who offer staff hires
+- **Enemy Archetypes**: Bruiser, Skirmisher, Hexer, Shieldbearer, Snarer, Duelist, Swarm
+- **No Permadeath**: Injury/Escape model ensures player always survives
+
+### Part 6: Contract System
+- **Max 5 Active Contracts**: Multi-step quests with 3-5 steps each
+- **3 Lanes Per Step**: Shadow (covert), Seal (diplomatic), Steel (force)
+- **Meters**: Heat (0-100), Unrest per settlement
+- **Fail-Forward**: Some contracts allow continuation with complications
+- **Variety Engine**: 45,760+ combinations proven (8,640 scene + 34,560 encounter + 2,560 name)
+- **Sources**: Broker, Guild, Clan, Syndicate
+- **SLATE Axes**: S (Spy), L (Law), A (Army), T (Territory), E (Enterprise)
+
+### Part 7: Roster & Army
+- **Field Team Scaling**: 4→8→12→16 based on Commander/Steward tier milestones
+- **8 Staff Roles**: Scout, Handler (+15% Shadow), Delegate, Scribe (+15% Seal), Quartermaster, Instructor (+15% Steel), Broker, Recruiter
+- **Roster Slots**: OPS, STAFF, CADRE, DISTRICT_ASSET
+- **Army Abstraction**: Garrison 0-900, readiness/supply/discipline meters
+- **Betrayal Risk**: LOW/MEDIUM/HIGH based on relationship metrics
+- **Prevention Levers**: Pay, Oath-Sigil, Transparency, Rotate Duty
+
 ### Special Systems
 - **Three Marks**: Orc legitimacy system (Strength, Mind, Stewardship) for world influence
 - **Black Market Rules**: Exists everywhere EXCEPT Elven Enclaves and Halfling Quarters (clean hubs)
 - **Recruitment Gating**: NPCs require trust/standing thresholds, optionally role tiers, and forbidden flags
+- **Dirty Tactics**: Valid in combat but cost legitimacy heavily if public/witnessed
 
 ## External Dependencies
 
