@@ -7,7 +7,7 @@ import { ShinyButton } from "@/components/ui/shiny-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Terminal, RotateCcw, Globe, Building2, Users, Shield, ChevronRight } from "lucide-react";
+import { Terminal, RotateCcw, Globe, Building2, Users, Shield, ChevronRight, Sword, FileText, Beer, UserCog, Flame, Activity } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -31,8 +31,8 @@ export default function Home() {
       <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <div>
-             <h1 className="text-2xl text-slate-100 font-serif font-bold tracking-tight">S.L.A.T.E.</h1>
-             <p className="text-[10px] text-slate-500 font-mono tracking-widest uppercase">Kami "The Kitsune" Reiss</p>
+             <h1 className="text-xl text-slate-100 font-serif font-bold tracking-tight">The Arbitor of the Mainland</h1>
+             <p className="text-[10px] text-slate-500 font-mono tracking-widest uppercase">v0.7 • Kami "The Kitsune" Reiss</p>
           </div>
           
           <div className="flex gap-2">
@@ -101,6 +101,73 @@ export default function Home() {
               </CardContent>
             </Card>
           </Link>
+        </section>
+
+        {/* Part 5-7 Navigation Cards */}
+        <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <Link href="/combat">
+            <Card className="bg-slate-900 border-slate-800 hover-elevate cursor-pointer group">
+              <CardContent className="p-4">
+                <Sword className="w-5 h-5 text-red-400 mb-2" />
+                <p className="font-medium text-slate-200 text-sm">Combat</p>
+                <p className="text-xs text-slate-500">Arena & Pits</p>
+              </CardContent>
+            </Card>
+          </Link>
+          
+          <Link href="/contracts">
+            <Card className="bg-slate-900 border-slate-800 hover-elevate cursor-pointer group">
+              <CardContent className="p-4">
+                <FileText className="w-5 h-5 text-amber-400 mb-2" />
+                <p className="font-medium text-slate-200 text-sm">Contracts</p>
+                <p className="text-xs text-slate-500">{(state.activeContracts?.length || 0)}/5 active</p>
+              </CardContent>
+            </Card>
+          </Link>
+          
+          <Link href="/tavern">
+            <Card className="bg-slate-900 border-slate-800 hover-elevate cursor-pointer group">
+              <CardContent className="p-4">
+                <Beer className="w-5 h-5 text-orange-400 mb-2" />
+                <p className="font-medium text-slate-200 text-sm">Tavern</p>
+                <p className="text-xs text-slate-500">Social hub</p>
+              </CardContent>
+            </Card>
+          </Link>
+          
+          <Link href="/roster">
+            <Card className="bg-slate-900 border-slate-800 hover-elevate cursor-pointer group">
+              <CardContent className="p-4">
+                <UserCog className="w-5 h-5 text-blue-400 mb-2" />
+                <p className="font-medium text-slate-200 text-sm">Roster</p>
+                <p className="text-xs text-slate-500">{(state.roster?.length || 0)} staff</p>
+              </CardContent>
+            </Card>
+          </Link>
+        </section>
+
+        {/* Heat & Injury Quick View */}
+        <section className="grid grid-cols-2 gap-3">
+          <Card className="bg-slate-900 border-slate-800">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Flame className="w-4 h-4 text-orange-400" />
+                <span className="text-sm font-medium text-slate-300">Heat</span>
+                <span className="text-xs text-slate-500 ml-auto">{state.meters?.heat || 0}%</span>
+              </div>
+              <Progress value={state.meters?.heat || 0} className="h-1.5" />
+            </CardContent>
+          </Card>
+          <Card className="bg-slate-900 border-slate-800">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Activity className="w-4 h-4 text-red-400" />
+                <span className="text-sm font-medium text-slate-300">Injury</span>
+                <span className="text-xs text-slate-500 ml-auto">{state.injury?.level || 0}/5</span>
+              </div>
+              <Progress value={((5 - (state.injury?.level || 0)) / 5) * 100} className="h-1.5" />
+            </CardContent>
+          </Card>
         </section>
 
         {/* Resources */}
@@ -208,7 +275,7 @@ export default function Home() {
         {/* Footer Info */}
         <footer className="pt-12 pb-6 text-center">
             <p className="text-xs text-slate-600 font-mono">
-              S.L.A.T.E. Sandbox Prototype v0.2 • Local Storage Persistence Active
+              The Arbitor of the Mainland v0.7 • Local Storage Persistence Active
             </p>
         </footer>
       </main>

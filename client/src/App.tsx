@@ -7,6 +7,10 @@ import Home from "@/pages/Home";
 import WorldBible from "@/pages/WorldBible";
 import Districts from "@/pages/Districts";
 import NPCEngine from "@/pages/NPCEngine";
+import Combat from "@/pages/Combat";
+import Contracts from "@/pages/Contracts";
+import Tavern from "@/pages/Tavern";
+import Roster from "@/pages/Roster";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -16,6 +20,10 @@ function Router() {
       <Route path="/world" component={WorldBible} />
       <Route path="/districts" component={Districts} />
       <Route path="/npcs" component={NPCEngine} />
+      <Route path="/combat" component={Combat} />
+      <Route path="/contracts" component={Contracts} />
+      <Route path="/tavern" component={Tavern} />
+      <Route path="/roster" component={Roster} />
       <Route component={NotFound} />
     </Switch>
   );

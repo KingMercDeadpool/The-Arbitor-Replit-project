@@ -1,14 +1,22 @@
 import { useState, useEffect } from "react";
 import { engine, type ContractType, type RoleKey } from "../lib/game-engine";
-import { type GameState, type Relationship } from "@shared/schema";
+import type { 
+  GameState, 
+  Relationship, 
+  Stance, 
+  CombatMove, 
+  ApproachLane,
+  StaffRole,
+  RosterSlot,
+  BetrayalRisk
+} from "@shared/schema";
 
 export function useGameState() {
   const [state, setState] = useState<GameState>(engine.getState());
 
   useEffect(() => {
-    // Subscribe to engine changes to force re-render
     const unsubscribe = engine.subscribe(() => {
-      setState({ ...engine.getState() }); // spread to create new object ref
+      setState({ ...engine.getState() });
     });
     return unsubscribe;
   }, []);
@@ -16,7 +24,7 @@ export function useGameState() {
   return {
     state,
     actions: {
-      // Step 1 - Contracts & Roles
+      // Step 1 - Contracts & Roles (Legacy)
       completeContract: (type: ContractType, hardLineCompliant: boolean) => 
         engine.completeContractStep(type, hardLineCompliant),
       upgradeRole: (role: RoleKey) => engine.upgradeRole(role),
@@ -36,7 +44,7 @@ export function useGameState() {
       modifyRelationship: (npcId: string, changes: Partial<Relationship>) => 
         engine.modifyRelationship(npcId, changes),
       canRecruitNpc: (npcId: string) => engine.canRecruitNpc(npcId),
-      recruitNpc: (npcId: string) => engine.recruitNpc(npcId),
+      recruitNpc: (npcId: string, slot?: RosterSlot) => engine.recruitNpc(npcId, slot),
       interactWithNpc: (npcId: string, action: "talk" | "bribe" | "threaten" | "help") =>
         engine.interactWithNpc(npcId, action),
 
@@ -45,7 +53,39 @@ export function useGameState() {
 
       // Three Marks
       modifyThreeMarks: (changes: { strength?: number; mind?: number; stewardship?: number }) =>
-        engine.modifyThreeMarks(changes)
+        engine.modifyThreeMarks(changes),
+
+      // Part 5: Combat
+      startCombat: (isPitFight: boolean, enemyCount?: number, publicEncounter?: boolean) => 
+        engine.startCombat(isPitFight, enemyCount, publicEncounter),
+      executeCombatMove: (move: CombatMove, targetId?: string, dirty?: boolean, riteId?: string) =>
+        engine.executeCombatMove(move, targetId, dirty, riteId),
+      changeStance: (stance: Stance) => engine.changeStance(stance),
+      endCombat: (victory: boolean) => engine.endCombat(victory),
+      applyInjury: (levels: number) => engine.applyInjury(levels),
+      heal: (method: "REST" | "CLINIC" | "RITE") => engine.heal(method),
+
+      // Part 6: Contracts
+      generateNewContract: (settlementId: string, source: "BROKER" | "GUILD" | "CLAN" | "SYNDICATE", axis: "S" | "L" | "A" | "T" | "E") =>
+        engine.generateNewContract(settlementId, source, axis),
+      resolveContractStep: (contractId: string, lane: ApproachLane) =>
+        engine.resolveContractStep(contractId, lane),
+      modifyHeat: (delta: number) => engine.modifyHeat(delta),
+      modifyUnrest: (settlementId: string, delta: number) => engine.modifyUnrest(settlementId, delta),
+
+      // Part 7: Roster & Army
+      assignToRoster: (npcId: string, slot: RosterSlot, staffRole?: StaffRole) =>
+        engine.assignToRoster(npcId, slot, staffRole),
+      addToFieldTeam: (npcId: string) => engine.addToFieldTeam(npcId),
+      removeFromFieldTeam: (npcId: string) => engine.removeFromFieldTeam(npcId),
+      upgradeFieldTeamSize: () => engine.upgradeFieldTeamSize(),
+      getStaffBonuses: () => engine.getStaffBonuses(),
+      modifyArmy: (changes: Partial<{ garrison: number; readiness: number; supply: number; discipline: number }>) =>
+        engine.modifyArmy(changes),
+      recruitGarrison: (count: number) => engine.recruitGarrison(count),
+      getBetrayalRisk: (npcId: string): BetrayalRisk => engine.getBetrayalRisk(npcId),
+      applyBetrayalPrevention: (npcId: string, method: "PAY" | "OATH" | "TRANSPARENCY" | "ROTATE") =>
+        engine.applyBetrayalPrevention(npcId, method),
     }
   };
 }

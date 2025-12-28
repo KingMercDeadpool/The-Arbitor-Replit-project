@@ -4,17 +4,35 @@ import {
   type GameState, 
   type Relationship,
   type WorldState,
+  type CombatState,
+  type InjuryState,
+  type Contract,
+  type Meters,
+  type Recruit,
+  type ArmyState,
+  type Stance,
+  type CombatMove,
+  type ApproachLane,
+  type StaffRole,
+  type RosterSlot,
+  type WoundTag,
+  type BetrayalRisk,
   ROLE_NAMES, 
-  TIER_TITLES 
+  TIER_TITLES,
+  STAFF_ROLES 
 } from "@shared/schema";
 import { RIVALS, ALL_NPCS } from "./world-data";
+import { generateContract, resolveLane, type LaneResult } from "./contract-data";
+import { generateEnemy, rollWoundTag, calculateCrowdFavorChange } from "./combat-data";
 
 // === TYPES ===
 export type ContractType = "CLEAN" | "GRAY" | "PUBLIC" | "COVERT";
 export type RoleKey = "spymasterTier" | "commanderTier" | "stewardTier" | "arbitorTier";
+export type LogType = "CONTRACT" | "TIER_UP" | "SYSTEM" | "CRISIS" | "NPC" | "WORLD" | "COMBAT" | "SOCIAL" | "RECRUITMENT";
 
 // === CONSTANTS ===
-const STORAGE_KEY = "slate_sandbox_save_v2";
+const STORAGE_KEY = "arbitor_mainland_save_v07";
+const OLD_STORAGE_KEYS = ["slate_sandbox_save_v2", "slate_sandbox_save"];
 
 const DEFAULT_RELATIONSHIP: Relationship = {
   trust: 0,
@@ -22,6 +40,23 @@ const DEFAULT_RELATIONSHIP: Relationship = {
   debt: 0,
   leverage: 0,
   standing: 0
+};
+
+const INITIAL_METERS: Meters = {
+  heat: 0,
+  unrestBySettlement: {}
+};
+
+const INITIAL_INJURY: InjuryState = {
+  level: 0,
+  woundTag: null
+};
+
+const INITIAL_ARMY: ArmyState = {
+  garrison: 0,
+  readiness: 50,
+  supply: 50,
+  discipline: 50
 };
 
 const INITIAL_WORLD_STATE: WorldState = {
@@ -38,6 +73,7 @@ const INITIAL_WORLD_STATE: WorldState = {
 };
 
 const INITIAL_STATE: GameState = {
+  version: "0.7",
   resources: {
     renown: 0,
     leverage: 0,
@@ -65,7 +101,60 @@ const INITIAL_STATE: GameState = {
   },
   historyLog: [],
   world: INITIAL_WORLD_STATE,
+  // Part 5
+  combat: undefined,
+  injury: INITIAL_INJURY,
+  stanceMastery: { BALANCED: true, AGGRESSIVE: false, DEFENSIVE: false, EVASIVE: false, FOCUSED: false },
+  pitSponsorFavor: {},
+  // Part 6
+  meters: INITIAL_METERS,
+  activeContracts: [],
+  completedContracts: [],
+  failedContracts: [],
+  // Part 7
+  roster: [],
+  fieldTeamIds: [],
+  fieldTeamMaxSize: 4,
+  army: INITIAL_ARMY,
 };
+
+// === SAFE MIGRATION ===
+function migrateState(oldState: any): GameState {
+  const migrated = { ...INITIAL_STATE };
+  
+  // Preserve existing data
+  if (oldState.resources) migrated.resources = { ...INITIAL_STATE.resources, ...oldState.resources };
+  if (oldState.roles) migrated.roles = { ...INITIAL_STATE.roles, ...oldState.roles };
+  if (oldState.flags) migrated.flags = { ...INITIAL_STATE.flags, ...oldState.flags };
+  if (oldState.counters) migrated.counters = { ...INITIAL_STATE.counters, ...oldState.counters };
+  if (oldState.historyLog) migrated.historyLog = oldState.historyLog;
+  if (oldState.world) migrated.world = { ...INITIAL_WORLD_STATE, ...oldState.world };
+  
+  // Add new v0.7 fields if missing
+  migrated.version = "0.7";
+  migrated.combat = oldState.combat || undefined;
+  migrated.injury = oldState.injury || INITIAL_INJURY;
+  migrated.stanceMastery = oldState.stanceMastery || { BALANCED: true, AGGRESSIVE: false, DEFENSIVE: false, EVASIVE: false, FOCUSED: false };
+  migrated.pitSponsorFavor = oldState.pitSponsorFavor || {};
+  migrated.meters = oldState.meters || INITIAL_METERS;
+  migrated.activeContracts = oldState.activeContracts || [];
+  migrated.completedContracts = oldState.completedContracts || [];
+  migrated.failedContracts = oldState.failedContracts || [];
+  migrated.roster = oldState.roster || [];
+  migrated.fieldTeamIds = oldState.fieldTeamIds || [];
+  migrated.fieldTeamMaxSize = oldState.fieldTeamMaxSize || 4;
+  migrated.army = oldState.army || INITIAL_ARMY;
+  
+  // Migrate recruited NPCs to roster if needed
+  if (oldState.world?.recruitedNpcs?.length > 0 && (!migrated.roster || migrated.roster.length === 0)) {
+    migrated.roster = oldState.world.recruitedNpcs.map((npcId: string) => ({
+      npcId,
+      slot: "OPS" as RosterSlot,
+    }));
+  }
+  
+  return migrated;
+}
 
 // === ENGINE LOGIC ===
 
@@ -79,14 +168,27 @@ export class GameEngine {
 
   private load(): GameState {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (!stored) return JSON.parse(JSON.stringify(INITIAL_STATE));
-      const parsed = JSON.parse(stored);
-      // Migrate old saves without world state
-      if (!parsed.world) {
-        parsed.world = JSON.parse(JSON.stringify(INITIAL_WORLD_STATE));
+      // Try new storage key first
+      let stored = localStorage.getItem(STORAGE_KEY);
+      
+      // Migrate from old keys if needed
+      if (!stored) {
+        for (const oldKey of OLD_STORAGE_KEYS) {
+          stored = localStorage.getItem(oldKey);
+          if (stored) {
+            console.log(`Migrating save from ${oldKey} to ${STORAGE_KEY}`);
+            localStorage.removeItem(oldKey);
+            break;
+          }
+        }
       }
-      return gameStateSchema.parse(parsed);
+      
+      if (!stored) return JSON.parse(JSON.stringify(INITIAL_STATE));
+      
+      const parsed = JSON.parse(stored);
+      const migrated = migrateState(parsed);
+      
+      return migrated;
     } catch (e) {
       console.error("Failed to load save, resetting:", e);
       return JSON.parse(JSON.stringify(INITIAL_STATE));
@@ -118,7 +220,7 @@ export class GameEngine {
     this.save();
   }
 
-  private log(action: string, details: string, type: "CONTRACT" | "TIER_UP" | "SYSTEM" | "CRISIS" | "NPC" | "WORLD" = "SYSTEM") {
+  private log(action: string, details: string, type: LogType = "SYSTEM") {
     const entry = {
       id: Math.random().toString(36).substring(7),
       timestamp: Date.now(),
@@ -127,32 +229,28 @@ export class GameEngine {
       type
     };
     this.state.historyLog.unshift(entry);
-    if (this.state.historyLog.length > 50) this.state.historyLog.pop();
+    if (this.state.historyLog.length > 150) this.state.historyLog.pop();
   }
 
-  // === CONTRACT ACTIONS ===
+  // === CONTRACT ACTIONS (Legacy + New) ===
 
   public completeContractStep(type: ContractType, hardLineCompliant: boolean) {
     const r = this.state.resources;
     let logDetail = "";
 
-    // 1. Hard Line Check
     if (!hardLineCompliant && !this.state.flags.hardLineViolated) {
       this.state.flags.hardLineViolated = true;
       r.legitimacy = Math.max(0, r.legitimacy - 20);
       this.log("HARD LINE CROSSED", "Violated moral code. Legitimacy plummeted.", "CRISIS");
     }
 
-    // 2. Resource Logic
     const rng = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 
     switch (type) {
       case "CLEAN":
         r.legitimacy = Math.min(100, r.legitimacy + rng(2, 5));
         r.leverage += rng(1, 3);
-        // Chance for Settlement Support
         if (Math.random() > 0.7) this.state.counters.settlementSupport++;
-        // Three Marks bonus
         this.state.world.threeMarks.stewardship = Math.min(100, this.state.world.threeMarks.stewardship + rng(1, 2));
         logDetail = "Gained Legitimacy and small Leverage.";
         break;
@@ -160,35 +258,31 @@ export class GameEngine {
         r.leverage += rng(3, 6);
         r.capacity += rng(2, 5);
         if (Math.random() > 0.5) r.legitimacy = Math.max(0, r.legitimacy - rng(1, 4));
-        // Three Marks - mixed
+        if (this.state.meters) this.state.meters.heat = Math.min(100, this.state.meters.heat + rng(5, 10));
         this.state.world.threeMarks.mind = Math.min(100, this.state.world.threeMarks.mind + rng(1, 2));
         logDetail = "Gained Leverage & Capacity. Risked Legitimacy.";
         break;
       case "PUBLIC":
         r.renown += rng(4, 8);
         if (Math.random() > 0.3) {
-             r.legitimacy = Math.min(100, r.legitimacy + rng(1, 3)); 
-             // Chance for Settlement Support if Clean
-             if (Math.random() > 0.6) this.state.counters.settlementSupport++;
+          r.legitimacy = Math.min(100, r.legitimacy + rng(1, 3));
+          if (Math.random() > 0.6) this.state.counters.settlementSupport++;
         } else {
-             r.legitimacy = Math.max(0, r.legitimacy - rng(1, 3));
+          r.legitimacy = Math.max(0, r.legitimacy - rng(1, 3));
         }
-        // Three Marks - strength from public display
         this.state.world.threeMarks.strength = Math.min(100, this.state.world.threeMarks.strength + rng(1, 2));
         logDetail = "Gained Renown. Public reaction varied.";
         break;
       case "COVERT":
         r.leverage += rng(5, 10);
-        r.legitimacy = Math.max(0, r.legitimacy - rng(2, 8)); // High risk
-        // Chance for Proof Chains
+        r.legitimacy = Math.max(0, r.legitimacy - rng(2, 8));
         if (Math.random() > 0.5) this.state.counters.proofChains++;
-        // Three Marks - mind from clever work
+        if (this.state.meters) this.state.meters.heat = Math.min(100, this.state.meters.heat + rng(10, 20));
         this.state.world.threeMarks.mind = Math.min(100, this.state.world.threeMarks.mind + rng(2, 3));
         logDetail = "Major Leverage gain. Legitimacy suffered.";
         break;
     }
 
-    // 3. Token Progress
     r.contractStepsCompleted++;
     if (r.contractStepsCompleted % 3 === 0) {
       r.roleTokens++;
@@ -199,10 +293,552 @@ export class GameEngine {
     this.save();
   }
 
+  // === PART 6: NEW CONTRACT SYSTEM ===
+
+  public generateNewContract(settlementId: string, source: "BROKER" | "GUILD" | "CLAN" | "SYNDICATE", axis: "S" | "L" | "A" | "T" | "E") {
+    if ((this.state.activeContracts?.length || 0) >= 5) {
+      this.log("CONTRACT", "Cannot accept more contracts. Max 5 active.", "CONTRACT");
+      return null;
+    }
+    
+    const difficulty = Math.floor((this.state.roles.arbitorTier + this.state.roles.spymasterTier) / 2);
+    const contract = generateContract(settlementId, source, axis, difficulty);
+    
+    if (!this.state.activeContracts) this.state.activeContracts = [];
+    this.state.activeContracts.push(contract);
+    
+    this.log("CONTRACT", `Accepted: ${contract.title}`, "CONTRACT");
+    this.save();
+    return contract;
+  }
+
+  public resolveContractStep(contractId: string, lane: ApproachLane) {
+    const contract = this.state.activeContracts?.find(c => c.id === contractId);
+    if (!contract) return null;
+    
+    const step = contract.steps[contract.currentStep];
+    if (!step || step.completed || step.failed) return null;
+    
+    // Calculate staff bonuses
+    const staffBonuses = this.getStaffBonuses();
+    const hasProof = this.state.counters.proofChains > 0;
+    
+    const result = resolveLane(lane, contract, hasProof, staffBonuses);
+    
+    // Apply results
+    step.chosenLane = lane;
+    
+    if (result.success) {
+      step.completed = true;
+      contract.currentStep++;
+      
+      // Check if contract complete
+      if (contract.currentStep >= contract.steps.length) {
+        this.completeContract(contractId);
+      }
+    } else {
+      if (contract.failForwardEnabled && Math.random() > 0.5) {
+        // Fail forward - add complication but continue
+        step.completed = true;
+        contract.currentStep++;
+        contract.steps.push({
+          id: `crisis_${Date.now()}`,
+          description: "Crisis: Handle the complications from the failed step",
+          completed: false,
+          failed: false,
+        });
+        this.log("CONTRACT", "Step failed but you push forward with complications.", "CONTRACT");
+      } else {
+        step.failed = true;
+        this.failContract(contractId);
+      }
+    }
+    
+    // Apply fallout
+    if (this.state.meters) {
+      this.state.meters.heat = Math.max(0, Math.min(100, this.state.meters.heat + result.heatChange));
+    }
+    this.state.resources.legitimacy = Math.max(0, Math.min(100, this.state.resources.legitimacy + result.legitimacyChange));
+    
+    // Injury risk
+    if (result.injuryRisk > 0 && Math.random() * 100 < result.injuryRisk) {
+      this.applyInjury(1);
+    }
+    
+    this.log("CONTRACT", `${lane} lane: ${result.narrative}`, "CONTRACT");
+    this.save();
+    return result;
+  }
+
+  private completeContract(contractId: string) {
+    const idx = this.state.activeContracts?.findIndex(c => c.id === contractId) ?? -1;
+    if (idx === -1) return;
+    
+    const contract = this.state.activeContracts![idx];
+    contract.status = "COMPLETED";
+    
+    // Apply rewards
+    const r = contract.rewards;
+    this.state.resources.renown += r.renown;
+    this.state.resources.leverage += r.leverage;
+    this.state.resources.capacity += r.capacity;
+    this.state.resources.legitimacy = Math.max(0, Math.min(100, this.state.resources.legitimacy + r.legitimacy));
+    this.state.resources.roleTokens += r.roleTokens;
+    
+    this.state.world.threeMarks.strength = Math.min(100, this.state.world.threeMarks.strength + r.markBonus.strength);
+    this.state.world.threeMarks.mind = Math.min(100, this.state.world.threeMarks.mind + r.markBonus.mind);
+    this.state.world.threeMarks.stewardship = Math.min(100, this.state.world.threeMarks.stewardship + r.markBonus.stewardship);
+    
+    // Move to completed
+    this.state.activeContracts!.splice(idx, 1);
+    if (!this.state.completedContracts) this.state.completedContracts = [];
+    this.state.completedContracts.push(contractId);
+    
+    this.log("CONTRACT", `Completed: ${contract.title}. Rewards claimed!`, "CONTRACT");
+  }
+
+  private failContract(contractId: string) {
+    const idx = this.state.activeContracts?.findIndex(c => c.id === contractId) ?? -1;
+    if (idx === -1) return;
+    
+    const contract = this.state.activeContracts![idx];
+    contract.status = "FAILED";
+    
+    // Apply consequences
+    const risks = contract.risks;
+    if (this.state.meters) {
+      this.state.meters.heat = Math.min(100, this.state.meters.heat + risks.heatDelta);
+    }
+    this.state.resources.legitimacy = Math.max(0, this.state.resources.legitimacy + risks.legitimacyDelta);
+    
+    // Move to failed
+    this.state.activeContracts!.splice(idx, 1);
+    if (!this.state.failedContracts) this.state.failedContracts = [];
+    this.state.failedContracts.push(contractId);
+    
+    this.log("CONTRACT", `Failed: ${contract.title}. Consequences applied.`, "CONTRACT");
+  }
+
+  // === PART 5: COMBAT SYSTEM ===
+
+  public startCombat(isPitFight: boolean, enemyCount: number = 3, publicEncounter: boolean = false) {
+    const enemies = [];
+    const archetypes: ("BRUISER" | "SKIRMISHER" | "HEXER" | "SHIELDBEARER" | "SNARER" | "DUELIST" | "SWARM")[] = 
+      ["BRUISER", "SKIRMISHER", "HEXER", "SHIELDBEARER", "SNARER", "DUELIST", "SWARM"];
+    
+    for (let i = 0; i < enemyCount; i++) {
+      const arch = archetypes[Math.floor(Math.random() * archetypes.length)];
+      enemies.push(generateEnemy(arch, Math.floor(this.state.roles.commanderTier / 2) + 1));
+    }
+    
+    // Player combatant
+    const player = {
+      id: "player_kami",
+      name: "Kami",
+      hp: 50 + this.state.roles.commanderTier * 5,
+      maxHp: 50 + this.state.roles.commanderTier * 5,
+      stance: "BALANCED" as Stance,
+      isPlayer: true,
+      position: 1,
+    };
+    
+    // Field team allies
+    const allies = [player];
+    const maxTeam = this.state.fieldTeamMaxSize || 4;
+    const teamIds = (this.state.fieldTeamIds || []).slice(0, maxTeam - 1);
+    
+    for (const npcId of teamIds) {
+      const npc = ALL_NPCS.find(n => n.id === npcId);
+      if (npc) {
+        allies.push({
+          id: npcId,
+          name: npc.name,
+          hp: 30 + Math.random() * 20,
+          maxHp: 40,
+          stance: "BALANCED" as Stance,
+          isPlayer: false,
+          position: Math.floor(Math.random() * 3),
+        });
+      }
+    }
+    
+    this.state.combat = {
+      active: true,
+      isPitFight,
+      turn: 1,
+      allies,
+      enemies,
+      crowdFavor: isPitFight ? 50 : 0,
+      dirtyTacticsUsed: false,
+      publicEncounter,
+    };
+    
+    this.log("COMBAT", isPitFight ? "Entered the pit!" : "Combat initiated!", "COMBAT");
+    this.save();
+  }
+
+  public executeCombatMove(move: CombatMove, targetId?: string, dirtyTactic: boolean = false, riteId?: string) {
+    if (!this.state.combat?.active) return null;
+    
+    const combat = this.state.combat;
+    const player = combat.allies.find(a => a.id === "player_kami");
+    if (!player) return null;
+    
+    let result = { hit: false, damage: 0, narrative: "", crowdChange: 0 };
+    
+    // Simple combat resolution
+    const hitRoll = Math.random() * 100;
+    const hitChance = 70 + (dirtyTactic ? 15 : 0);
+    result.hit = hitRoll < hitChance;
+    
+    if (dirtyTactic) {
+      combat.dirtyTacticsUsed = true;
+      if (combat.publicEncounter || combat.isPitFight) {
+        this.state.resources.legitimacy = Math.max(0, this.state.resources.legitimacy - 5);
+        if (this.state.meters) this.state.meters.heat = Math.min(100, this.state.meters.heat + 5);
+      }
+    }
+    
+    switch (move) {
+      case "STRIKE":
+        if (result.hit && targetId) {
+          result.damage = 8 + Math.floor(Math.random() * 8);
+          const target = combat.enemies.find(e => e.id === targetId);
+          if (target) {
+            target.hp = Math.max(0, target.hp - result.damage);
+            result.narrative = `Struck ${target.name} for ${result.damage} damage!`;
+            if (target.hp <= 0) result.narrative += " Defeated!";
+          }
+        } else {
+          result.narrative = "Strike missed!";
+        }
+        break;
+      case "GUARD":
+        result.narrative = "Raised defenses.";
+        break;
+      case "STEP":
+        player.position = (player.position + 1) % 3;
+        result.narrative = `Repositioned to ${["Front", "Mid", "Back"][player.position]}.`;
+        break;
+      case "BIND":
+        if (result.hit && targetId) {
+          result.narrative = "Target bound! They cannot retreat.";
+        } else {
+          result.narrative = "Failed to bind.";
+        }
+        break;
+      case "INVOKE":
+        result.damage = 12 + Math.floor(Math.random() * 10);
+        if (targetId) {
+          const target = combat.enemies.find(e => e.id === targetId);
+          if (target) {
+            target.hp = Math.max(0, target.hp - result.damage);
+            result.narrative = `Invoked rite for ${result.damage} damage!`;
+          }
+        } else {
+          result.narrative = "Channeled magical energy.";
+        }
+        break;
+      case "FEINT":
+        result.narrative = dirtyTactic 
+          ? "Dirty feint! Exposed enemy stance." 
+          : "Feinted, improving next hit chance.";
+        break;
+      case "RALLY":
+        player.hp = Math.min(player.maxHp, player.hp + 10);
+        result.narrative = "Rallied! Recovered morale and health.";
+        if (combat.isPitFight) {
+          result.crowdChange = 10;
+        }
+        break;
+    }
+    
+    // Crowd favor for pit fights
+    if (combat.isPitFight) {
+      const crowdDelta = calculateCrowdFavorChange(
+        move,
+        move === "INVOKE",
+        !!this.state.stanceMastery?.[player.stance],
+        false,
+        dirtyTactic,
+        move === "GUARD"
+      );
+      combat.crowdFavor = Math.max(0, Math.min(100, combat.crowdFavor + crowdDelta + result.crowdChange));
+    }
+    
+    // Enemy turn (simplified)
+    combat.enemies = combat.enemies.filter(e => e.hp > 0);
+    for (const enemy of combat.enemies) {
+      if (Math.random() > 0.3) {
+        const dmg = 4 + Math.floor(Math.random() * 6);
+        player.hp = Math.max(0, player.hp - dmg);
+      }
+    }
+    
+    combat.turn++;
+    
+    // Check win/loss
+    if (combat.enemies.length === 0) {
+      result.narrative += " Victory!";
+      this.endCombat(true);
+    } else if (player.hp <= 0) {
+      result.narrative += " Defeated...";
+      this.endCombat(false);
+    }
+    
+    this.log("COMBAT", result.narrative, "COMBAT");
+    this.save();
+    return result;
+  }
+
+  public changeStance(newStance: Stance) {
+    if (!this.state.combat?.active) return;
+    const player = this.state.combat.allies.find(a => a.id === "player_kami");
+    if (player) {
+      player.stance = newStance;
+      this.log("COMBAT", `Shifted to ${newStance} stance.`, "COMBAT");
+      this.save();
+    }
+  }
+
+  public endCombat(victory: boolean) {
+    if (!this.state.combat) return;
+    
+    const combat = this.state.combat;
+    
+    if (victory) {
+      this.state.resources.renown += 5;
+      this.state.resources.leverage += 3;
+      this.state.world.threeMarks.strength = Math.min(100, this.state.world.threeMarks.strength + 3);
+      
+      if (combat.isPitFight && combat.crowdFavor >= 70) {
+        this.state.resources.renown += 10;
+        this.log("COMBAT", "Crowd loved it! Bonus renown!", "COMBAT");
+      }
+    } else {
+      // Injury/Escape
+      this.applyInjury(1 + Math.floor(Math.random() * 2));
+      this.log("COMBAT", "Escaped with injuries.", "COMBAT");
+    }
+    
+    this.state.combat = undefined;
+    this.save();
+  }
+
+  public applyInjury(levels: number) {
+    if (!this.state.injury) this.state.injury = INITIAL_INJURY;
+    
+    this.state.injury.level = Math.min(5, this.state.injury.level + levels);
+    
+    if (levels > 0 && !this.state.injury.woundTag) {
+      this.state.injury.woundTag = rollWoundTag();
+    }
+    
+    this.log("SYSTEM", `Injury increased to ${this.state.injury.level}. Wound: ${this.state.injury.woundTag || "None"}`, "SYSTEM");
+    this.save();
+  }
+
+  public heal(method: "REST" | "CLINIC" | "RITE") {
+    if (!this.state.injury) return;
+    
+    let healAmount = 0;
+    let clearsWound = false;
+    
+    switch (method) {
+      case "REST":
+        healAmount = 1;
+        break;
+      case "CLINIC":
+        healAmount = 2;
+        clearsWound = true;
+        this.state.resources.leverage = Math.max(0, this.state.resources.leverage - 5);
+        break;
+      case "RITE":
+        healAmount = 2;
+        clearsWound = this.state.injury.woundTag === "HEXED" || Math.random() > 0.5;
+        break;
+    }
+    
+    this.state.injury.level = Math.max(0, this.state.injury.level - healAmount);
+    if (clearsWound || this.state.injury.level === 0) {
+      this.state.injury.woundTag = null;
+    }
+    
+    this.log("SYSTEM", `Healed via ${method}. Injury: ${this.state.injury.level}`, "SYSTEM");
+    this.save();
+  }
+
+  // === PART 7: ROSTER & STAFF ===
+
+  public assignToRoster(npcId: string, slot: RosterSlot, staffRole?: StaffRole) {
+    if (!this.state.roster) this.state.roster = [];
+    
+    // Remove if already in roster
+    this.state.roster = this.state.roster.filter(r => r.npcId !== npcId);
+    
+    const recruit: Recruit = {
+      npcId,
+      slot,
+      staffRole: slot === "STAFF" ? staffRole : undefined,
+    };
+    
+    this.state.roster.push(recruit);
+    this.log("RECRUITMENT", `Assigned to ${slot}${staffRole ? ` as ${staffRole}` : ""}`, "RECRUITMENT");
+    this.save();
+  }
+
+  public addToFieldTeam(npcId: string) {
+    if (!this.state.fieldTeamIds) this.state.fieldTeamIds = [];
+    const maxSize = this.state.fieldTeamMaxSize || 4;
+    
+    if (this.state.fieldTeamIds.length >= maxSize - 1) { // -1 for player
+      this.log("SYSTEM", "Field team is full.", "SYSTEM");
+      return false;
+    }
+    
+    if (!this.state.fieldTeamIds.includes(npcId)) {
+      this.state.fieldTeamIds.push(npcId);
+      this.log("RECRUITMENT", "Added to field team.", "RECRUITMENT");
+      this.save();
+      return true;
+    }
+    return false;
+  }
+
+  public removeFromFieldTeam(npcId: string) {
+    if (!this.state.fieldTeamIds) return;
+    this.state.fieldTeamIds = this.state.fieldTeamIds.filter(id => id !== npcId);
+    this.save();
+  }
+
+  public upgradeFieldTeamSize() {
+    const current = this.state.fieldTeamMaxSize || 4;
+    if (current >= 16) return false;
+    
+    // Check prerequisites
+    const tier = this.state.roles.commanderTier;
+    const stewardTier = this.state.roles.stewardTier;
+    
+    let newMax = current;
+    if (tier >= 4 && current < 8) newMax = 8;
+    if (tier >= 6 && stewardTier >= 4 && current < 12) newMax = 12;
+    if (tier >= 8 && stewardTier >= 6 && current < 16) newMax = 16;
+    
+    if (newMax > current) {
+      this.state.fieldTeamMaxSize = newMax;
+      this.log("SYSTEM", `Field team max increased to ${newMax}`, "SYSTEM");
+      this.save();
+      return true;
+    }
+    return false;
+  }
+
+  public getStaffBonuses(): { shadow: number; seal: number; steel: number } {
+    const bonuses = { shadow: 0, seal: 0, steel: 0 };
+    
+    for (const recruit of this.state.roster || []) {
+      if (recruit.slot === "STAFF" && recruit.staffRole) {
+        switch (recruit.staffRole) {
+          case "SCOUT":
+          case "HANDLER":
+            bonuses.shadow += 15;
+            break;
+          case "DELEGATE":
+          case "SCRIBE":
+            bonuses.seal += 15;
+            break;
+          case "QUARTERMASTER":
+          case "INSTRUCTOR":
+            bonuses.steel += 15;
+            break;
+          case "BROKER":
+            bonuses.shadow += 10;
+            bonuses.seal += 5;
+            break;
+          case "RECRUITER":
+            bonuses.seal += 10;
+            break;
+        }
+      }
+    }
+    
+    return bonuses;
+  }
+
+  // === ARMY SYSTEM ===
+
+  public modifyArmy(changes: Partial<ArmyState>) {
+    if (!this.state.army) this.state.army = INITIAL_ARMY;
+    
+    if (changes.garrison !== undefined) this.state.army.garrison = Math.max(0, Math.min(900, this.state.army.garrison + changes.garrison));
+    if (changes.readiness !== undefined) this.state.army.readiness = Math.max(0, Math.min(100, this.state.army.readiness + changes.readiness));
+    if (changes.supply !== undefined) this.state.army.supply = Math.max(0, Math.min(100, this.state.army.supply + changes.supply));
+    if (changes.discipline !== undefined) this.state.army.discipline = Math.max(0, Math.min(100, this.state.army.discipline + changes.discipline));
+    
+    this.save();
+  }
+
+  public recruitGarrison(count: number) {
+    const cost = count * 2; // 2 capacity per soldier
+    if (this.state.resources.capacity < cost) {
+      this.log("SYSTEM", "Not enough capacity to recruit.", "SYSTEM");
+      return false;
+    }
+    
+    this.state.resources.capacity -= cost;
+    this.modifyArmy({ garrison: count, readiness: -5, discipline: -2 });
+    this.log("SYSTEM", `Recruited ${count} soldiers.`, "SYSTEM");
+    return true;
+  }
+
+  // === BETRAYAL SYSTEM ===
+
+  public getBetrayalRisk(npcId: string): BetrayalRisk {
+    const rel = this.getRelationship(npcId);
+    
+    let riskScore = 0;
+    
+    if (rel.fear > 60) riskScore += 2;
+    if (rel.trust < 20) riskScore += 2;
+    if (rel.leverage > 50 && rel.standing < 0) riskScore += 1;
+    if (rel.debt < -20) riskScore += 1; // They owe you nothing, you owe them
+    
+    if (riskScore >= 4) return "HIGH";
+    if (riskScore >= 2) return "MEDIUM";
+    return "LOW";
+  }
+
+  public applyBetrayalPrevention(npcId: string, method: "PAY" | "OATH" | "TRANSPARENCY" | "ROTATE") {
+    switch (method) {
+      case "PAY":
+        if (this.state.resources.leverage >= 10) {
+          this.state.resources.leverage -= 10;
+          this.modifyRelationship(npcId, { debt: 10, trust: 5 });
+          this.log("NPC", "Paid off their concerns.", "NPC");
+        }
+        break;
+      case "OATH":
+        if (this.state.counters.proofChains > 0) {
+          this.state.counters.proofChains--;
+          this.modifyRelationship(npcId, { trust: 15, leverage: -20 });
+          this.log("NPC", "Bound by Oath-Sigil.", "NPC");
+        }
+        break;
+      case "TRANSPARENCY":
+        this.modifyRelationship(npcId, { standing: 10, leverage: -10, fear: -5 });
+        this.log("NPC", "Showed transparency.", "NPC");
+        break;
+      case "ROTATE":
+        this.modifyRelationship(npcId, { fear: -10 });
+        this.log("NPC", "Rotated duties.", "NPC");
+        break;
+    }
+    this.save();
+  }
+
   // === ROLE PROGRESSION ===
 
   public getUpgradeCost(role: RoleKey, currentTier: number) {
-    // Simple linear curve: Cost = Tier * 5
     const cost = currentTier * 5;
     const resourceMap: Record<RoleKey, keyof typeof INITIAL_STATE.resources> = {
       spymasterTier: 'leverage',
@@ -226,18 +862,15 @@ export class GameEngine {
     const cost = this.getUpgradeCost(role, currentTier);
     const resources = this.state.resources;
 
-    // 1. Basic Resource Checks
     if (resources.roleTokens < cost.token) return { allowed: false, reason: "Need 1 Role Token" };
     if (resources[cost.resourceType] < cost.primaryResource) 
       return { allowed: false, reason: `Need ${cost.primaryResource} ${cost.resourceType}` };
     if (resources.legitimacy < cost.legitimacyReq) 
       return { allowed: false, reason: `Need ${cost.legitimacyReq} Legitimacy` };
 
-    // 2. Special Arbitor Gates
     if (role === 'arbitorTier') {
-      if (currentTier === 8) { // Attempting 8 -> 9
+      if (currentTier === 8) {
         const gates = [];
-        // Check 2 other roles >= 7
         const highRoles = Object.entries(this.state.roles)
           .filter(([k, v]) => k !== 'arbitorTier' && v >= 7).length;
         if (highRoles < 2) gates.push("Need 2 other roles at Tier 7+");
@@ -251,7 +884,7 @@ export class GameEngine {
         if (gates.length > 0) return { allowed: false, reason: gates.join(". ") };
       }
 
-      if (currentTier === 9) { // Attempting 9 -> 10
+      if (currentTier === 9) {
         const gates = [];
         if (!this.state.flags.continentRulingSucceeded) gates.push("Must succeed Continent Ruling");
         if (!this.state.flags.watchdogFrameworkEstablished) gates.push("Must establish Watchdog Framework");
@@ -271,21 +904,20 @@ export class GameEngine {
     const currentTier = this.state.roles[role];
     const cost = this.getUpgradeCost(role, currentTier);
 
-    // Consume
     this.state.resources.roleTokens -= cost.token;
-    // @ts-ignore - dynamic key access is safe here due to strict typing in getUpgradeCost
+    // @ts-ignore
     this.state.resources[cost.resourceType] -= cost.primaryResource;
-
-    // Upgrade
     this.state.roles[role]++;
     
-    // Unlock crisis flag trigger if any role hits 8 (prototype stub)
     if (this.state.roles[role] === 8) {
-        this.log("EVENT UNLOCKED", "Credibility Crisis is now available in Debug menu.", "SYSTEM");
+      this.log("EVENT UNLOCKED", "Credibility Crisis is now available in Debug menu.", "SYSTEM");
     }
 
     const title = this.getRoleTitle(role, this.state.roles[role]);
     this.log("TIER UP", `Advanced ${role} to Tier ${this.state.roles[role]}: ${title}`, "TIER_UP");
+    
+    // Check field team upgrade
+    this.upgradeFieldTeamSize();
     
     this.save();
   }
@@ -368,7 +1000,7 @@ export class GameEngine {
     return { allowed: reasons.length === 0, reasons };
   }
 
-  public recruitNpc(npcId: string) {
+  public recruitNpc(npcId: string, slot: RosterSlot = "OPS") {
     const check = this.canRecruitNpc(npcId);
     if (!check.allowed) return false;
 
@@ -376,7 +1008,8 @@ export class GameEngine {
     if (!npc) return false;
 
     this.state.world.recruitedNpcs.push(npcId);
-    this.log("RECRUITMENT", `Recruited ${npc.name}`, "NPC");
+    this.assignToRoster(npcId, slot);
+    this.log("RECRUITMENT", `Recruited ${npc.name} as ${slot}`, "RECRUITMENT");
     this.save();
     return true;
   }
@@ -388,24 +1021,24 @@ export class GameEngine {
     switch (action) {
       case "talk":
         this.modifyRelationship(npcId, { trust: 2, standing: 1 });
-        this.log("NPC", `Spoke with ${npc.name}. Gained trust.`, "NPC");
+        this.log("SOCIAL", `Spoke with ${npc.name}. Gained trust.`, "SOCIAL");
         break;
       case "bribe":
         if (this.state.resources.leverage >= 5) {
           this.state.resources.leverage -= 5;
           this.modifyRelationship(npcId, { trust: 5, debt: -10 });
-          this.log("NPC", `Bribed ${npc.name}. They owe you now.`, "NPC");
+          this.log("SOCIAL", `Bribed ${npc.name}. They owe you now.`, "SOCIAL");
         }
         break;
       case "threaten":
         this.modifyRelationship(npcId, { fear: 10, trust: -5, standing: -5 });
-        this.log("NPC", `Threatened ${npc.name}. They fear you now.`, "NPC");
+        this.log("SOCIAL", `Threatened ${npc.name}. They fear you now.`, "SOCIAL");
         break;
       case "help":
         if (this.state.resources.capacity >= 3) {
           this.state.resources.capacity -= 3;
           this.modifyRelationship(npcId, { trust: 8, standing: 5, debt: 5 });
-          this.log("NPC", `Helped ${npc.name}. They are grateful.`, "NPC");
+          this.log("SOCIAL", `Helped ${npc.name}. They are grateful.`, "SOCIAL");
         }
         break;
     }
@@ -415,14 +1048,11 @@ export class GameEngine {
   // === RIVAL ESCALATION ===
 
   public getRivalStage(rivalId: string): number {
-    // Stored in a simple way - we'll compute based on triggers
     const rival = RIVALS.find(r => r.id === rivalId);
     if (!rival) return 0;
     
     let stage = 0;
-    const triggers = rival.escalationTriggers;
 
-    // Check trigger conditions
     if (this.state.resources.renown >= 50) stage++;
     if (this.state.resources.leverage >= 100) stage++;
     if (this.state.roles.spymasterTier >= 6) stage++;
@@ -432,7 +1062,6 @@ export class GameEngine {
     if (this.state.flags.hardLineViolated) stage++;
     if (this.state.world.threeMarks.strength >= 30) stage++;
 
-    // Cap at 5
     return Math.min(5, stage);
   }
 
@@ -443,6 +1072,21 @@ export class GameEngine {
     if (changes.strength) tm.strength = Math.max(0, Math.min(100, tm.strength + changes.strength));
     if (changes.mind) tm.mind = Math.max(0, Math.min(100, tm.mind + changes.mind));
     if (changes.stewardship) tm.stewardship = Math.max(0, Math.min(100, tm.stewardship + changes.stewardship));
+    this.save();
+  }
+
+  // === METERS ===
+
+  public modifyHeat(delta: number) {
+    if (!this.state.meters) this.state.meters = INITIAL_METERS;
+    this.state.meters.heat = Math.max(0, Math.min(100, this.state.meters.heat + delta));
+    this.save();
+  }
+
+  public modifyUnrest(settlementId: string, delta: number) {
+    if (!this.state.meters) this.state.meters = INITIAL_METERS;
+    const current = this.state.meters.unrestBySettlement[settlementId] || 0;
+    this.state.meters.unrestBySettlement[settlementId] = Math.max(0, Math.min(100, current + delta));
     this.save();
   }
 
