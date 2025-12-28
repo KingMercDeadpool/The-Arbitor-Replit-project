@@ -57,7 +57,7 @@ export default function Home() {
 
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-slate-900 border border-slate-800 h-auto p-1 sticky top-0 z-40">
+          <TabsList className="grid w-full grid-cols-4 bg-slate-900 border border-slate-800 h-auto p-1 sticky top-14 z-40">
             <TabsTrigger value="overview" className="text-xs py-2 data-[state=active]:bg-slate-800">Overview</TabsTrigger>
             <TabsTrigger value="ops" className="text-xs py-2 data-[state=active]:bg-slate-800">Operations</TabsTrigger>
             <TabsTrigger value="roles" className="text-xs py-2 data-[state=active]:bg-slate-800">Roles</TabsTrigger>
