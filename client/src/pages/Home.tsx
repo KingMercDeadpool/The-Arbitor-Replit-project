@@ -1,3 +1,4 @@
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useGameState } from "@/hooks/use-game-state";
 import { ResourceBar } from "@/components/game/ResourceBar";
 import { ContractSimulator } from "@/components/game/ContractSimulator";
@@ -32,7 +33,7 @@ export default function Home() {
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <div>
              <h1 className="text-xl text-slate-100 font-serif font-bold tracking-tight">The Arbitor of the Mainland</h1>
-             <p className="text-[10px] text-slate-500 font-mono tracking-widest uppercase">v0.7 • Kami "The Kitsune" Reiss</p>
+             <p className="text-[10px] text-slate-500 font-mono tracking-widest uppercase">v0.8 • Kami "The Kitsune" Reiss</p>
           </div>
           
           <div className="flex gap-2">
@@ -55,227 +56,205 @@ export default function Home() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
-        {/* Navigation Cards */}
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Link href="/world">
-            <Card className="bg-slate-900 border-slate-800 hover-elevate cursor-pointer group">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Globe className="w-5 h-5 text-amber-400" />
-                  <div>
-                    <p className="font-medium text-slate-200">World Bible</p>
-                    <p className="text-xs text-slate-500">5 biomes, 20 settlements</p>
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-4 bg-slate-900 border border-slate-800 h-auto p-1">
+            <TabsTrigger value="overview" className="text-xs py-2 data-[state=active]:bg-slate-800">Overview</TabsTrigger>
+            <TabsTrigger value="ops" className="text-xs py-2 data-[state=active]:bg-slate-800">Operations</TabsTrigger>
+            <TabsTrigger value="roles" className="text-xs py-2 data-[state=active]:bg-slate-800">Roles</TabsTrigger>
+            <TabsTrigger value="intel" className="text-xs py-2 data-[state=active]:bg-slate-800">Intel</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-8 mt-6">
+            {/* Heat & Injury Quick View */}
+            <section className="grid grid-cols-2 gap-3">
+              <Card className="bg-slate-900 border-slate-800">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Flame className="w-4 h-4 text-orange-400" />
+                    <span className="text-sm font-medium text-slate-300">Heat</span>
+                    <span className="text-xs text-slate-500 ml-auto">{state.meters?.heat || 0}%</span>
                   </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors" />
-              </CardContent>
-            </Card>
-          </Link>
-          
-          <Link href="/districts">
-            <Card className="bg-slate-900 border-slate-800 hover-elevate cursor-pointer group">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Building2 className="w-5 h-5 text-purple-400" />
-                  <div>
-                    <p className="font-medium text-slate-200">Districts</p>
-                    <p className="text-xs text-slate-500">Communities & markets</p>
+                  <Progress value={state.meters?.heat || 0} className="h-1.5" />
+                </CardContent>
+              </Card>
+              <Card className="bg-slate-900 border-slate-800">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Activity className="w-4 h-4 text-red-400" />
+                    <span className="text-sm font-medium text-slate-300">Injury</span>
+                    <span className="text-xs text-slate-500 ml-auto">{state.injury?.level || 0}/5</span>
                   </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors" />
-              </CardContent>
-            </Card>
-          </Link>
-          
-          <Link href="/npcs">
-            <Card className="bg-slate-900 border-slate-800 hover-elevate cursor-pointer group">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Users className="w-5 h-5 text-emerald-400" />
-                  <div>
-                    <p className="font-medium text-slate-200">NPCs & Rivals</p>
-                    <p className="text-xs text-slate-500">{state.world.recruitedNpcs.length} recruited</p>
+                  <Progress value={((5 - (state.injury?.level || 0)) / 5) * 100} className="h-1.5" />
+                </CardContent>
+              </Card>
+            </section>
+
+            <section>
+              <ResourceBar resources={state.resources} />
+            </section>
+
+            {/* Three Marks Quick View */}
+            <section>
+              <Card className="bg-slate-900 border-slate-800">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Shield className="w-4 h-4 text-red-400" />
+                    <span className="text-sm font-medium text-slate-300">Three Marks (Orc Legitimacy)</span>
                   </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors" />
-              </CardContent>
-            </Card>
-          </Link>
-        </section>
-
-        {/* Part 5-7 Navigation Cards */}
-        <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Link href="/combat">
-            <Card className="bg-slate-900 border-slate-800 hover-elevate cursor-pointer group">
-              <CardContent className="p-4">
-                <Sword className="w-5 h-5 text-red-400 mb-2" />
-                <p className="font-medium text-slate-200 text-sm">Combat</p>
-                <p className="text-xs text-slate-500">Arena & Pits</p>
-              </CardContent>
-            </Card>
-          </Link>
-          
-          <Link href="/contracts">
-            <Card className="bg-slate-900 border-slate-800 hover-elevate cursor-pointer group">
-              <CardContent className="p-4">
-                <FileText className="w-5 h-5 text-amber-400 mb-2" />
-                <p className="font-medium text-slate-200 text-sm">Contracts</p>
-                <p className="text-xs text-slate-500">{(state.activeContracts?.length || 0)}/5 active</p>
-              </CardContent>
-            </Card>
-          </Link>
-          
-          <Link href="/tavern">
-            <Card className="bg-slate-900 border-slate-800 hover-elevate cursor-pointer group">
-              <CardContent className="p-4">
-                <Beer className="w-5 h-5 text-orange-400 mb-2" />
-                <p className="font-medium text-slate-200 text-sm">Tavern</p>
-                <p className="text-xs text-slate-500">Social hub</p>
-              </CardContent>
-            </Card>
-          </Link>
-          
-          <Link href="/roster">
-            <Card className="bg-slate-900 border-slate-800 hover-elevate cursor-pointer group">
-              <CardContent className="p-4">
-                <UserCog className="w-5 h-5 text-blue-400 mb-2" />
-                <p className="font-medium text-slate-200 text-sm">Roster</p>
-                <p className="text-xs text-slate-500">{(state.roster?.length || 0)} staff</p>
-              </CardContent>
-            </Card>
-          </Link>
-        </section>
-
-        {/* Heat & Injury Quick View */}
-        <section className="grid grid-cols-2 gap-3">
-          <Card className="bg-slate-900 border-slate-800">
-            <CardContent className="p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Flame className="w-4 h-4 text-orange-400" />
-                <span className="text-sm font-medium text-slate-300">Heat</span>
-                <span className="text-xs text-slate-500 ml-auto">{state.meters?.heat || 0}%</span>
-              </div>
-              <Progress value={state.meters?.heat || 0} className="h-1.5" />
-            </CardContent>
-          </Card>
-          <Card className="bg-slate-900 border-slate-800">
-            <CardContent className="p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Activity className="w-4 h-4 text-red-400" />
-                <span className="text-sm font-medium text-slate-300">Injury</span>
-                <span className="text-xs text-slate-500 ml-auto">{state.injury?.level || 0}/5</span>
-              </div>
-              <Progress value={((5 - (state.injury?.level || 0)) / 5) * 100} className="h-1.5" />
-            </CardContent>
-          </Card>
-        </section>
-
-        {/* Resources */}
-        <section className="animate-in" style={{ animationDelay: "0ms" }}>
-          <ResourceBar resources={state.resources} />
-        </section>
-
-        {/* Three Marks Quick View */}
-        <section className="animate-in" style={{ animationDelay: "50ms" }}>
-          <Card className="bg-slate-900 border-slate-800">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Shield className="w-4 h-4 text-red-400" />
-                <span className="text-sm font-medium text-slate-300">Three Marks (Orc Legitimacy)</span>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-500">Strength</span>
-                    <span className="text-red-400">{state.world.threeMarks.strength}</span>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-slate-500">Strength</span>
+                        <span className="text-red-400">{state.world.threeMarks.strength}</span>
+                      </div>
+                      <Progress value={state.world.threeMarks.strength} className="h-1.5" />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-slate-500">Mind</span>
+                        <span className="text-blue-400">{state.world.threeMarks.mind}</span>
+                      </div>
+                      <Progress value={state.world.threeMarks.mind} className="h-1.5" />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-slate-500">Stewardship</span>
+                        <span className="text-emerald-400">{state.world.threeMarks.stewardship}</span>
+                      </div>
+                      <Progress value={state.world.threeMarks.stewardship} className="h-1.5" />
+                    </div>
                   </div>
-                  <Progress value={state.world.threeMarks.strength} className="h-1.5" />
-                </div>
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-500">Mind</span>
-                    <span className="text-blue-400">{state.world.threeMarks.mind}</span>
-                  </div>
-                  <Progress value={state.world.threeMarks.mind} className="h-1.5" />
-                </div>
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-500">Stewardship</span>
-                    <span className="text-emerald-400">{state.world.threeMarks.stewardship}</span>
-                  </div>
-                  <Progress value={state.world.threeMarks.stewardship} className="h-1.5" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
+                </CardContent>
+              </Card>
+            </section>
 
-        {/* Special Counters */}
-        <section className="grid grid-cols-2 gap-3 animate-in" style={{ animationDelay: "75ms" }}>
-          <Card className="bg-slate-900 border-slate-800">
-            <CardContent className="p-3 text-center">
-              <p className="text-2xl font-bold text-purple-400">{state.counters.proofChains}</p>
-              <p className="text-xs text-slate-500">Proof Chains</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-slate-900 border-slate-800">
-            <CardContent className="p-3 text-center">
-              <p className="text-2xl font-bold text-emerald-400">{state.counters.settlementSupport}</p>
-              <p className="text-xs text-slate-500">Settlement Support</p>
-            </CardContent>
-          </Card>
-        </section>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <section className="lg:col-span-2">
+                 <ContractSimulator />
+              </section>
+              <section>
+                 <LogViewer />
+              </section>
+            </div>
+          </TabsContent>
 
-        {/* Action Loop */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <section className="lg:col-span-2 animate-in" style={{ animationDelay: "100ms" }}>
-             <ContractSimulator />
-          </section>
-          
-          <section className="animate-in" style={{ animationDelay: "200ms" }}>
-             <LogViewer />
-          </section>
-        </div>
+          <TabsContent value="ops" className="space-y-6 mt-6">
+            <section className="grid grid-cols-2 gap-3">
+              <Link href="/combat">
+                <Card className="bg-slate-900 border-slate-800 hover-elevate cursor-pointer group h-full">
+                  <CardContent className="p-4">
+                    <Sword className="w-5 h-5 text-red-400 mb-2" />
+                    <p className="font-medium text-slate-200 text-sm">Combat</p>
+                    <p className="text-xs text-slate-500">Tactical Trials</p>
+                  </CardContent>
+                </Card>
+              </Link>
+              <Link href="/contracts">
+                <Card className="bg-slate-900 border-slate-800 hover-elevate cursor-pointer group h-full">
+                  <CardContent className="p-4">
+                    <FileText className="w-5 h-5 text-amber-400 mb-2" />
+                    <p className="font-medium text-slate-200 text-sm">Contracts</p>
+                    <p className="text-xs text-slate-500">{(state.activeContracts?.length || 0)}/5 active</p>
+                  </CardContent>
+                </Card>
+              </Link>
+              <Link href="/tavern">
+                <Card className="bg-slate-900 border-slate-800 hover-elevate cursor-pointer group h-full">
+                  <CardContent className="p-4">
+                    <Beer className="w-5 h-5 text-orange-400 mb-2" />
+                    <p className="font-medium text-slate-200 text-sm">Tavern</p>
+                    <p className="text-xs text-slate-500">Social hub</p>
+                  </CardContent>
+                </Card>
+              </Link>
+              <Link href="/roster">
+                <Card className="bg-slate-900 border-slate-800 hover-elevate cursor-pointer group h-full">
+                  <CardContent className="p-4">
+                    <UserCog className="w-5 h-5 text-blue-400 mb-2" />
+                    <p className="font-medium text-slate-200 text-sm">Roster</p>
+                    <p className="text-xs text-slate-500">{(state.roster?.length || 0)} staff</p>
+                  </CardContent>
+                </Card>
+              </Link>
+            </section>
+          </TabsContent>
 
-        {/* Progression */}
-        <section className="animate-in" style={{ animationDelay: "300ms" }}>
-          <div className="flex items-center gap-2 mb-6">
-            <h2 className="text-xl font-bold text-slate-200 font-serif">Role Progression</h2>
-            <div className="h-px flex-1 bg-slate-800" />
-          </div>
+          <TabsContent value="roles" className="space-y-6 mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <RoleCard roleKey="spymasterTier" label="Spymaster" description="Network & Intel" colorClass="text-purple-400" />
+              <RoleCard roleKey="commanderTier" label="Commander" description="War & Authority" colorClass="text-red-400" />
+              <RoleCard roleKey="stewardTier" label="Steward" description="Economy & Growth" colorClass="text-emerald-400" />
+              <RoleCard roleKey="arbitorTier" label="Arbitor" description="Law & Judgment" colorClass="text-amber-400" />
+            </div>
+          </TabsContent>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <RoleCard 
-              roleKey="spymasterTier" 
-              label="Spymaster" 
-              description="Network & Intel"
-              colorClass="text-purple-400"
-            />
-            <RoleCard 
-              roleKey="commanderTier" 
-              label="Commander" 
-              description="War & Authority"
-              colorClass="text-red-400"
-            />
-            <RoleCard 
-              roleKey="stewardTier" 
-              label="Steward" 
-              description="Economy & Growth"
-              colorClass="text-emerald-400"
-            />
-            <RoleCard 
-              roleKey="arbitorTier" 
-              label="Arbitor" 
-              description="Law & Judgment"
-              colorClass="text-amber-400"
-            />
-          </div>
-        </section>
+          <TabsContent value="intel" className="space-y-6 mt-6">
+            <section className="grid grid-cols-1 gap-3">
+              <Link href="/world">
+                <Card className="bg-slate-900 border-slate-800 hover-elevate cursor-pointer group">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Globe className="w-5 h-5 text-amber-400" />
+                      <div>
+                        <p className="font-medium text-slate-200">World Bible</p>
+                        <p className="text-xs text-slate-500">5 biomes, 20 settlements</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors" />
+                  </CardContent>
+                </Card>
+              </Link>
+              <Link href="/districts">
+                <Card className="bg-slate-900 border-slate-800 hover-elevate cursor-pointer group">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Building2 className="w-5 h-5 text-purple-400" />
+                      <div>
+                        <p className="font-medium text-slate-200">Districts</p>
+                        <p className="text-xs text-slate-500">Communities & markets</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors" />
+                  </CardContent>
+                </Card>
+              </Link>
+              <Link href="/npcs">
+                <Card className="bg-slate-900 border-slate-800 hover-elevate cursor-pointer group">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Users className="w-5 h-5 text-emerald-400" />
+                      <div>
+                        <p className="font-medium text-slate-200">NPCs & Rivals</p>
+                        <p className="text-xs text-slate-500">{state.world.recruitedNpcs.length} recruited</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors" />
+                  </CardContent>
+                </Card>
+              </Link>
+            </section>
+            
+            <section className="grid grid-cols-2 gap-3">
+              <Card className="bg-slate-900 border-slate-800">
+                <CardContent className="p-3 text-center">
+                  <p className="text-2xl font-bold text-purple-400">{state.counters.proofChains}</p>
+                  <p className="text-xs text-slate-500">Proof Chains</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-slate-900 border-slate-800">
+                <CardContent className="p-3 text-center">
+                  <p className="text-2xl font-bold text-emerald-400">{state.counters.settlementSupport}</p>
+                  <p className="text-xs text-slate-500">Settlement Support</p>
+                </CardContent>
+              </Card>
+            </section>
+          </TabsContent>
+        </Tabs>
 
         {/* Footer Info */}
         <footer className="pt-12 pb-6 text-center">
             <p className="text-xs text-slate-600 font-mono">
-              The Arbitor of the Mainland v0.7 • Local Storage Persistence Active
+              The Arbitor of the Mainland v0.8 • Local Storage Persistence Active
             </p>
         </footer>
       </main>
