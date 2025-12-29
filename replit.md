@@ -1,8 +1,18 @@
-# The Arbitor of the Mainland v0.8
+# The Arbitor of the Mainland v0.8.1
 
 ## Overview
 
 The Arbitor of the Mainland (formerly S.L.A.T.E.) is a mobile-first, text-centric fantasy strategy game. Players take on the role of Kami "The Kitsune" Reiss, a rising power broker managing four parallel role tracks: Spymaster, Commander, Steward, and Arbitor. The game focuses on resource management, contract execution, role progression, tactical trials (quiz combat), roster management, and world exploration with NPC interactions.
+
+**Version 0.8.1 Features:**
+- Trainer NPC System: 7 unlockable trainers with practice modes and specialty bonuses
+- Gear/Equipment System: Weapons, armor, trinkets with combat bonuses (+timer, -damage, +mastery)
+- Narrative Combat Scenes: Archetype-specific intro, taunt, hit, miss, and wounded dialogue
+- NPC Dialogue System: Role-based greetings/farewells with trust-level variations (9 roles, 8 ancestries)
+- Contextual NPC Actions: Role-specific action menus with trust/standing requirements (45+ actions)
+- Enhanced Log Viewer: Collapsible entries, filtering, animations, mobile-friendly touch targets
+- Prologue Tutorial: First-time player onboarding scenes
+- Improved Settings: Save, Load, Restart Game buttons with confirmation dialogs
 
 **Version 0.8 Features:**
 - Tactical Trials: Quiz-based combat replacing turn-based system
