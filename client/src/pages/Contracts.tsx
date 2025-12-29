@@ -154,25 +154,51 @@ export default function Contracts() {
             </Card>
           )}
 
-          {/* Stats */}
-          <Card className="mb-4">
-            <CardContent className="pt-4">
-              <div className="flex justify-around">
-                <div className="text-center">
-                  <CheckCircle2 className="h-5 w-5 mx-auto text-green-500" />
-                  <span className="text-sm font-medium">{completedCount}</span>
-                  <p className="text-xs text-muted-foreground">Completed</p>
+          {/* Stats & Logs */}
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <Card>
+              <CardContent className="pt-4">
+                <div className="flex justify-around">
+                  <div className="text-center">
+                    <CheckCircle2 className="h-4 w-4 mx-auto text-green-500" />
+                    <span className="text-sm font-medium">{completedCount}</span>
+                  </div>
+                  <div className="text-center">
+                    <XCircle className="h-4 w-4 mx-auto text-red-500" />
+                    <span className="text-sm font-medium">{failedCount}</span>
+                  </div>
                 </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4">
                 <div className="text-center">
-                  <XCircle className="h-5 w-5 mx-auto text-red-500" />
-                  <span className="text-sm font-medium">{failedCount}</span>
-                  <p className="text-xs text-muted-foreground">Failed</p>
-                </div>
-                <div className="text-center">
-                  <Clock className="h-5 w-5 mx-auto text-blue-500" />
+                  <Clock className="h-4 w-4 mx-auto text-blue-500" />
                   <span className="text-sm font-medium">{state.resources.contractStepsCompleted}</span>
-                  <p className="text-xs text-muted-foreground">Steps Done</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Steps</p>
                 </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="mb-4">
+            <CardHeader className="py-2 px-4 border-b">
+              <CardTitle className="text-xs uppercase tracking-tighter text-muted-foreground">Activity Log</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 max-h-48 overflow-y-auto">
+              <div className="divide-y divide-border">
+                {state.historyLog
+                  .filter(l => l.type === "CONTRACT")
+                  .slice(0, 10)
+                  .map(log => (
+                    <div key={log.id} className="p-3 text-xs animate-in fade-in slide-in-from-top-1">
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="font-semibold uppercase tracking-widest text-[10px] text-primary">{log.action}</span>
+                        <span className="text-[10px] text-muted-foreground">{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                      <p className="text-muted-foreground leading-relaxed italic">{log.details}</p>
+                    </div>
+                  ))}
               </div>
             </CardContent>
           </Card>

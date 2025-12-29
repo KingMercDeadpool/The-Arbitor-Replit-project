@@ -380,9 +380,18 @@ export class GameEngine {
     // Apply results
     step.chosenLane = lane;
     
+    // Add scenery response to log
+    const settlement = SETTLEMENTS.find(s => s.id === contract.settlementId);
+    const district = DISTRICTS.find(d => d.id === contract.districtId);
+    const scenery = `[${settlement?.name || "The Wilds"} - ${district?.name || "Outskirts"}] ${result.narrative}`;
+
     if (result.success) {
       step.completed = true;
       contract.currentStep++;
+      
+      // Earn some money while learning
+      this.state.resources.renown += 1;
+      this.state.resources.leverage += 2;
       
       // Check if contract complete
       if (contract.currentStep >= contract.steps.length) {
@@ -417,7 +426,7 @@ export class GameEngine {
       this.applyInjury(1);
     }
     
-    this.log("CONTRACT", `${lane} lane: ${result.narrative}`, "CONTRACT");
+    this.log("CONTRACT", scenery, "CONTRACT");
     this.save();
     return result;
   }

@@ -76,7 +76,6 @@ export default function Combat() {
     
     setTimeRemaining(trial?.timer || 15);
     setLastResult(null);
-    setShowExchangeComplete(false);
   }, [selectedArchetype, selectedRival, selectedCulture, isPitFight, actions, trial?.timer]);
 
   const handleAnswer = useCallback((answerIndex: number) => {

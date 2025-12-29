@@ -37,34 +37,35 @@ export function generateContractTitle(): string {
 // === STEP DESCRIPTIONS ===
 const STEP_TEMPLATES = {
   SHADOW: [
-    "Infiltrate the target location undetected",
-    "Gather intelligence from a reluctant source",
-    "Plant evidence without leaving traces",
-    "Intercept communications covertly",
-    "Bribe or persuade a guard to look away",
-    "Create a distraction for extraction"
+    "Infiltrate the target location undetected. The shadows are long and provide ample cover.",
+    "Gather intelligence from a reluctant source. Everyone has a price, or a fear.",
+    "Plant evidence without leaving traces. A ghost in the machinery of power.",
+    "Intercept communications covertly. Words intended for one ear, captured by another.",
+    "Bribe or persuade a guard to look away. A heavy purse often blinds the watchful.",
+    "Create a distraction for extraction. Chaos is the best cloak for a quick exit."
   ],
   SEAL: [
-    "Obtain proper authorization documents",
-    "Present evidence before witnesses",
-    "Negotiate terms with legal backing",
-    "File a formal complaint or petition",
-    "Gather sworn testimonies",
-    "Establish proof chain for legitimacy"
+    "Obtain proper authorization documents. The ink is dry, the authority unquestionable.",
+    "Present evidence before witnesses. Truth, when shouted, cannot be ignored.",
+    "Negotiate terms with legal backing. The law is a weapon, and you wield it well.",
+    "File a formal complaint or petition. Bureaucracy can be a slow, crushing hammer.",
+    "Gather sworn testimonies. Voices joined in truth create an unbreakable bond.",
+    "Establish proof chain for legitimacy. Every link forged in iron-clad fact."
   ],
   STEEL: [
-    "Confront the opposition directly",
-    "Secure the perimeter by force",
-    "Escort the package through hostile territory",
-    "Eliminate resistance at the checkpoint",
-    "Hold position against counterattack",
-    "Make a show of strength to intimidate"
+    "Confront the opposition directly. Let the ring of steel do the talking.",
+    "Secure the perimeter by force. None shall pass while your blades are drawn.",
+    "Escort the package through hostile territory. A shield wall against the tide.",
+    "Eliminate resistance at the checkpoint. The path forward is paved with fallen foes.",
+    "Hold position against counterattack. Stand firm like the mountains of Thornback.",
+    "Make a show of strength to intimidate. Sometimes, showing the blade is enough."
   ]
 };
 
 function generateStepDescription(lane: ApproachLane): string {
   const templates = STEP_TEMPLATES[lane];
-  return templates[Math.floor(Math.random() * templates.length)];
+  const template = templates[Math.floor(Math.random() * templates.length)];
+  return template;
 }
 
 // === CONTRACT GENERATION ===
