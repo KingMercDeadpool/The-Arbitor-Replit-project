@@ -4,6 +4,7 @@ import { ResourceBar } from "@/components/game/ResourceBar";
 import { ContractSimulator } from "@/components/game/ContractSimulator";
 import { RoleCard } from "@/components/game/RoleCard";
 import { LogViewer } from "@/components/game/LogViewer";
+import { Prologue } from "@/components/game/Prologue";
 import { ShinyButton } from "@/components/ui/shiny-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,12 @@ import { Link } from "wouter";
 
 export default function Home() {
   const { state, actions } = useGameState();
+
+  const showPrologue = !state.prologueCompleted;
+
+  if (showPrologue) {
+    return <Prologue onComplete={() => actions.completePrologue()} />;
+  }
 
   return (
     <div className="min-h-screen bg-transparent pb-20">

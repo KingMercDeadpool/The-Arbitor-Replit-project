@@ -23,7 +23,14 @@ import {
   Brain,
   Timer,
   Target,
-  Shield
+  Shield,
+  Eye,
+  Crown,
+  Scale,
+  Handshake,
+  Flame,
+  Lightbulb,
+  Zap
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -113,13 +120,15 @@ export function AppSidebar() {
                 </SheetHeader>
                 <ScrollArea className="h-[calc(100vh-120px)] mt-6 pr-4">
                   <div className="space-y-8 pb-8">
+                    <div className="text-xs text-slate-500 uppercase tracking-widest font-semibold border-b border-slate-800 pb-2 mb-4">Core Systems</div>
+                    
                     <section className="space-y-3">
                       <div className="flex items-center gap-2 text-blue-400">
                         <Brain className="w-5 h-5" />
                         <h3 className="font-bold">Tactical Trials</h3>
                       </div>
                       <p className="text-sm text-slate-300 leading-relaxed">
-                        Combat is a test of mental acuity. Instead of physical moves, you must answer questions about Lore, Doctrine, and Patterns to overcome foes.
+                        Combat tests mental acuity, not reflexes. Answer questions about Lore, Doctrine, and Patterns to overcome foes. Each archetype has unique question pools.
                       </p>
                     </section>
 
@@ -129,7 +138,7 @@ export function AppSidebar() {
                         <h3 className="font-bold">The Graduated Timer</h3>
                       </div>
                       <p className="text-sm text-slate-300 leading-relaxed">
-                        Time is your most precious resource. As your Mastery grows, you gain more composure (longer timers), but you must still act decisively.
+                        Time shrinks as Mastery grows: 15s at 0%, down to 8s at high Mastery. Composure comes from familiarity.
                       </p>
                     </section>
 
@@ -139,7 +148,7 @@ export function AppSidebar() {
                         <h3 className="font-bold">Mastery & Progress</h3>
                       </div>
                       <p className="text-sm text-slate-300 leading-relaxed">
-                        Defeating specific archetypes or rivals increases your Mastery over them. This represents your growing network of informants and tactical databases.
+                        Defeating archetypes or rivals increases your Mastery, unlocking easier timers and more tactical options against them.
                       </p>
                     </section>
 
@@ -149,8 +158,132 @@ export function AppSidebar() {
                         <h3 className="font-bold">The Injury System</h3>
                       </div>
                       <p className="text-sm text-slate-300 leading-relaxed">
-                        Failure isn't final, but it is costly. Accumulated mistakes lead to injuries. Fleeing preserves your life at the cost of pride and minor wounds.
+                        Wrong answers deal damage. At injury thresholds (25%, 50%, 75%), you gain wounds. Fleeing preserves life at the cost of pride.
                       </p>
+                    </section>
+
+                    <div className="text-xs text-slate-500 uppercase tracking-widest font-semibold border-b border-slate-800 pb-2 mb-4 mt-8">The Four Roles</div>
+
+                    <section className="space-y-3">
+                      <div className="flex items-center gap-2 text-purple-400">
+                        <Eye className="w-5 h-5" />
+                        <h3 className="font-bold">Spymaster</h3>
+                      </div>
+                      <p className="text-sm text-slate-300 leading-relaxed">
+                        Build intelligence networks. Unlocks Shadow lane bonuses in contracts. High-tier Spymasters reveal hidden information and manipulate events unseen.
+                      </p>
+                    </section>
+
+                    <section className="space-y-3">
+                      <div className="flex items-center gap-2 text-red-400">
+                        <Sword className="w-5 h-5" />
+                        <h3 className="font-bold">Commander</h3>
+                      </div>
+                      <p className="text-sm text-slate-300 leading-relaxed">
+                        Project martial strength. Unlocks Steel lane bonuses and field team slots. High-tier Commanders lead armies and intimidate through reputation.
+                      </p>
+                    </section>
+
+                    <section className="space-y-3">
+                      <div className="flex items-center gap-2 text-amber-400">
+                        <Crown className="w-5 h-5" />
+                        <h3 className="font-bold">Steward</h3>
+                      </div>
+                      <p className="text-sm text-slate-300 leading-relaxed">
+                        Manage resources and territory. Increases Capacity gains and unlocks economic options. High-tier Stewards control supply lines and trade.
+                      </p>
+                    </section>
+
+                    <section className="space-y-3">
+                      <div className="flex items-center gap-2 text-blue-400">
+                        <Scale className="w-5 h-5" />
+                        <h3 className="font-bold">Arbitor</h3>
+                      </div>
+                      <p className="text-sm text-slate-300 leading-relaxed">
+                        Judge disputes and shape law. Unlocks Seal lane bonuses and legitimacy preservation. High-tier Arbitors rewrite the rules themselves.
+                      </p>
+                    </section>
+
+                    <div className="text-xs text-slate-500 uppercase tracking-widest font-semibold border-b border-slate-800 pb-2 mb-4 mt-8">Contract Lanes</div>
+
+                    <section className="space-y-3">
+                      <div className="flex items-center gap-2 text-purple-400">
+                        <Eye className="w-5 h-5" />
+                        <h3 className="font-bold">Shadow Lane</h3>
+                      </div>
+                      <p className="text-sm text-slate-300 leading-relaxed">
+                        Covert approaches. Lower Heat gain, higher Leverage yield. Requires Spymaster investment. Best when you need discretion.
+                      </p>
+                    </section>
+
+                    <section className="space-y-3">
+                      <div className="flex items-center gap-2 text-blue-400">
+                        <Scale className="w-5 h-5" />
+                        <h3 className="font-bold">Seal Lane</h3>
+                      </div>
+                      <p className="text-sm text-slate-300 leading-relaxed">
+                        Diplomatic approaches. Preserves Legitimacy, builds Renown. Requires Arbitor investment. Best when reputation matters.
+                      </p>
+                    </section>
+
+                    <section className="space-y-3">
+                      <div className="flex items-center gap-2 text-red-400">
+                        <Sword className="w-5 h-5" />
+                        <h3 className="font-bold">Steel Lane</h3>
+                      </div>
+                      <p className="text-sm text-slate-300 leading-relaxed">
+                        Forceful approaches. Fast resolution, high Heat gain. Requires Commander investment. Best when speed trumps subtlety.
+                      </p>
+                    </section>
+
+                    <div className="text-xs text-slate-500 uppercase tracking-widest font-semibold border-b border-slate-800 pb-2 mb-4 mt-8">Relationships & NPCs</div>
+
+                    <section className="space-y-3">
+                      <div className="flex items-center gap-2 text-emerald-400">
+                        <Handshake className="w-5 h-5" />
+                        <h3 className="font-bold">The Five Metrics</h3>
+                      </div>
+                      <p className="text-sm text-slate-300 leading-relaxed">
+                        Trust, Fear, Debt, Leverage, Standing. Each NPC tracks all five. Recruitment requires thresholds in Trust or Standing. Fear controls, Leverage bargains.
+                      </p>
+                    </section>
+
+                    <section className="space-y-3">
+                      <div className="flex items-center gap-2 text-orange-400">
+                        <Flame className="w-5 h-5" />
+                        <h3 className="font-bold">Heat & Unrest</h3>
+                      </div>
+                      <p className="text-sm text-slate-300 leading-relaxed">
+                        Heat (0-100) measures how much attention you draw. High Heat triggers crackdowns. Unrest rises in settlements from aggressive actions.
+                      </p>
+                    </section>
+
+                    <div className="text-xs text-slate-500 uppercase tracking-widest font-semibold border-b border-slate-800 pb-2 mb-4 mt-8">Tips & Synergies</div>
+
+                    <section className="space-y-3">
+                      <div className="flex items-center gap-2 text-yellow-400">
+                        <Lightbulb className="w-5 h-5" />
+                        <h3 className="font-bold">Role Synergies</h3>
+                      </div>
+                      <ul className="text-sm text-slate-300 leading-relaxed space-y-2 list-disc list-inside">
+                        <li><span className="text-purple-300">Spymaster + Arbitor:</span> Intelligence informs verdicts</li>
+                        <li><span className="text-red-300">Commander + Steward:</span> Armies need supplies</li>
+                        <li><span className="text-blue-300">Arbitor + Steward:</span> Law protects wealth</li>
+                      </ul>
+                    </section>
+
+                    <section className="space-y-3">
+                      <div className="flex items-center gap-2 text-cyan-400">
+                        <Zap className="w-5 h-5" />
+                        <h3 className="font-bold">Quick Tips</h3>
+                      </div>
+                      <ul className="text-sm text-slate-300 leading-relaxed space-y-2 list-disc list-inside">
+                        <li>Balance your roles - specialization limits options</li>
+                        <li>Staff with bonuses amplify specific lanes</li>
+                        <li>Three Marks unlock Orcish support - invest in all three</li>
+                        <li>Rivals escalate over time - prepare before confronting</li>
+                        <li>The Tavern offers unique recruitment opportunities</li>
+                      </ul>
                     </section>
                   </div>
                 </ScrollArea>
@@ -159,9 +292,11 @@ export function AppSidebar() {
           </SidebarMenuItem>
           
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Settings">
-              <Settings />
-              <span>Settings</span>
+            <SidebarMenuButton asChild isActive={location === "/settings"} tooltip="Settings">
+              <Link href="/settings">
+                <Settings />
+                <span>Settings</span>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

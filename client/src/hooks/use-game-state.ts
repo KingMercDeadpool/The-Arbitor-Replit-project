@@ -110,6 +110,14 @@ export function useGameState() {
       abandonTrial: () => engine.abandonTrial(),
       isTrialActive: () => engine.isTrialActive(),
       getTrialState: () => engine.getTrialState(),
+
+      // Save/Load
+      downloadSave: () => engine.downloadSave(),
+      importSave: (jsonString: string) => engine.importSave(jsonString),
+
+      // Prologue
+      completePrologue: () => engine.completePrologue(),
+      isPrologueCompleted: () => engine.isPrologueCompleted(),
     }
   };
 }

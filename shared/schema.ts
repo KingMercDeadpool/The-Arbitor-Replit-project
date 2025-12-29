@@ -407,6 +407,7 @@ export const gameStateSchema = z.object({
   trial: trialStateSchema.optional(),
   learningStyle: learningStyleSchema.optional(),
   learningStyleCompleted: z.boolean().optional(),
+  prologueCompleted: z.boolean().optional(),
 });
 
 // === TYPE EXPORTS ===

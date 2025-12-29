@@ -162,6 +162,7 @@ const INITIAL_STATE: GameState = {
   trial: undefined,
   learningStyle: undefined,
   learningStyleCompleted: false,
+  prologueCompleted: false,
 };
 
 // === SAFE MIGRATION ===
@@ -196,6 +197,7 @@ function migrateState(oldState: any): GameState {
   migrated.trial = oldState.trial || undefined;
   migrated.learningStyle = oldState.learningStyle || undefined;
   migrated.learningStyleCompleted = oldState.learningStyleCompleted || false;
+  migrated.prologueCompleted = oldState.prologueCompleted || false;
   
   // Migrate recruited NPCs to roster if needed
   if (oldState.world?.recruitedNpcs?.length > 0 && (!migrated.roster || migrated.roster.length === 0)) {
@@ -270,6 +272,36 @@ export class GameEngine {
   public reset() {
     this.state = JSON.parse(JSON.stringify(INITIAL_STATE));
     this.save();
+  }
+
+  public exportSave(): string {
+    return JSON.stringify(this.state, null, 2);
+  }
+
+  public importSave(jsonString: string): boolean {
+    try {
+      const parsed = JSON.parse(jsonString);
+      const migrated = migrateState(parsed);
+      this.state = migrated;
+      this.save();
+      return true;
+    } catch (e) {
+      console.error("Failed to import save:", e);
+      return false;
+    }
+  }
+
+  public downloadSave() {
+    const data = this.exportSave();
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `arbitor-save-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   private log(action: string, details: string, type: LogType = "SYSTEM") {
@@ -1176,6 +1208,16 @@ export class GameEngine {
     this.state.learningStyleCompleted = true;
     this.log("SYSTEM", "Learning style assessment completed.", "SYSTEM");
     this.save();
+  }
+
+  public completePrologue() {
+    this.state.prologueCompleted = true;
+    this.log("SYSTEM", "The Kitsune's journey begins.", "SYSTEM");
+    this.save();
+  }
+
+  public isPrologueCompleted(): boolean {
+    return this.state.prologueCompleted === true;
   }
 
   public getMastery(): MasteryState {

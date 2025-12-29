@@ -11,6 +11,7 @@ import Combat from "@/pages/Combat";
 import Contracts from "@/pages/Contracts";
 import Tavern from "@/pages/Tavern";
 import Roster from "@/pages/Roster";
+import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -28,6 +29,7 @@ function Router() {
       <Route path="/contracts" component={Contracts} />
       <Route path="/tavern" component={Tavern} />
       <Route path="/roster" component={Roster} />
+      <Route path="/settings" component={Settings} />
       <Route component={NotFound} />
     </Switch>
   );
