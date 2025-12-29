@@ -41,7 +41,7 @@ import {
   ETHICS_QUESTIONS,
   RIVAL_QUESTIONS,
 } from "./quiz-data";
-import { RIVALS, ALL_NPCS } from "./world-data";
+import { RIVALS, ALL_NPCS, SETTLEMENTS, DISTRICTS } from "./world-data";
 import { generateContract, resolveLane, type LaneResult } from "./contract-data";
 import { generateEnemy, rollWoundTag, calculateCrowdFavorChange } from "./combat-data";
 
@@ -1215,7 +1215,7 @@ export class GameEngine {
       isRivalFight?: boolean;
     } = {}
   ): Question[] {
-    const mastery = this.getMastery();
+    const masteryState = this.getMastery();
     const rivalStage = options.rivalId ? this.getRivalStage(options.rivalId) : 0;
     
     // Build question pool
@@ -1224,7 +1224,7 @@ export class GameEngine {
       options.culture,
       options.rivalId,
       rivalStage,
-      mastery
+      masteryState
     );
     
     // Select questions for first exchange
@@ -1357,7 +1357,7 @@ export class GameEngine {
           this.state.trial.culture,
           this.state.trial.rivalId,
           this.state.trial.rivalId ? this.getRivalStage(this.state.trial.rivalId) : 0,
-          mastery
+          this.getMastery()
         );
         const newQuestions = selectQuestionsForExchange(pool, DEFAULT_TRIAL_CONFIG.questionsPerExchange);
         this.state.trial.questionIds = newQuestions.map(q => q.id);
@@ -1365,7 +1365,7 @@ export class GameEngine {
       }
     }
 
-    this.state.mastery = mastery;
+    this.state.mastery = { ...this.getMastery(), ...mastery };
     this.save();
 
     return { 
