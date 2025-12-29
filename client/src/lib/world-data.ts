@@ -300,3 +300,411 @@ export function getNPCsByDistrict(districtId: string): NPC[] {
 export function getSettlementsByBiome(biome: BiomeType): Settlement[] {
   return SETTLEMENTS.filter(s => s.biome === biome);
 }
+
+// === NPC DIALOGUE SYSTEM ===
+type DialogueType = "greeting" | "farewell" | "busy" | "trust_low" | "trust_high";
+
+const ROLE_DIALOGUES: Record<NpcRole, Record<DialogueType, string[]>> = {
+  MERCHANT: {
+    greeting: [
+      "Ah, a customer with discerning tastes, I see.",
+      "Welcome, welcome! Browse freely, buy generously.",
+      "The finest goods at prices that won't break your purse.",
+      "Business hours are all hours for the right buyer.",
+    ],
+    farewell: [
+      "May your coin purse never empty.",
+      "Come again when you need quality.",
+      "Safe travels, and remember where you found good deals.",
+    ],
+    busy: [
+      "I have other customers waiting.",
+      "Make it quick, time is coin.",
+    ],
+    trust_low: [
+      "I don't extend credit to strangers.",
+      "Cash only. No exceptions.",
+    ],
+    trust_high: [
+      "For you? I'll check the back room.",
+      "Loyal customers get the special stock.",
+    ],
+  },
+  INFORMANT: {
+    greeting: [
+      "You didn't see me. I didn't see you.",
+      "Information has value. What's yours?",
+      "Whispers travel fast in this town.",
+      "I hear things. Sometimes I share them.",
+    ],
+    farewell: [
+      "Remember: you were never here.",
+      "Be careful what you do with what I've told you.",
+      "Same time next week? No, wait. Different time.",
+    ],
+    busy: [
+      "Not now. Eyes everywhere.",
+      "I'm being watched. Come back later.",
+    ],
+    trust_low: [
+      "I don't know you well enough to talk.",
+      "Prove you can keep secrets first.",
+    ],
+    trust_high: [
+      "I've been saving this for someone I trust.",
+      "Between us? Here's what I really know.",
+    ],
+  },
+  GUARD: {
+    greeting: [
+      "State your business.",
+      "Keep your hands where I can see them.",
+      "You look like trouble. Are you trouble?",
+      "Papers, if you have them. Patience, if you don't.",
+    ],
+    farewell: [
+      "Move along. Stay out of trouble.",
+      "Keep your nose clean.",
+      "I'll be watching.",
+    ],
+    busy: [
+      "Can't talk now. Duty calls.",
+      "I'm on patrol. Make it quick.",
+    ],
+    trust_low: [
+      "I don't take bribes from strangers.",
+      "You'll get nothing from me.",
+    ],
+    trust_high: [
+      "I can look the other way. This once.",
+      "You've proven yourself. What do you need?",
+    ],
+  },
+  ARTISAN: {
+    greeting: [
+      "Careful! You'll disturb the work.",
+      "Custom orders take time. Mass production is for fools.",
+      "My craft speaks for itself.",
+      "Quality materials, quality results.",
+    ],
+    farewell: [
+      "May your hands never falter.",
+      "Appreciate good work when you see it.",
+      "Tell others where you found this quality.",
+    ],
+    busy: [
+      "I'm in the middle of a delicate step.",
+      "Come back when I'm not elbow-deep in work.",
+    ],
+    trust_low: [
+      "I don't share techniques with just anyone.",
+      "Commission something first. Then we'll talk.",
+    ],
+    trust_high: [
+      "I'll teach you a thing or two.",
+      "For you, I'll rush the order.",
+    ],
+  },
+  NOBLE: {
+    greeting: [
+      "You may approach.",
+      "I trust this is important.",
+      "Speak, but choose your words carefully.",
+      "What brings you before me?",
+    ],
+    farewell: [
+      "You are dismissed.",
+      "We shall speak again when it suits me.",
+      "Remember your place, but also your potential.",
+    ],
+    busy: [
+      "I have affairs of state to attend.",
+      "My time is not freely given.",
+    ],
+    trust_low: [
+      "You presume too much familiarity.",
+      "Earn standing before seeking favor.",
+    ],
+    trust_high: [
+      "Ah, someone worth my time.",
+      "Your loyalty has been noted and appreciated.",
+    ],
+  },
+  PRIEST: {
+    greeting: [
+      "Blessings upon you, traveler.",
+      "The sacred welcomes all who seek.",
+      "What troubles your spirit?",
+      "Have you come for guidance?",
+    ],
+    farewell: [
+      "May the ancestors watch over you.",
+      "Walk in the light.",
+      "Return when your spirit needs rest.",
+    ],
+    busy: [
+      "The rites cannot be interrupted.",
+      "I must tend to the sacred duties first.",
+    ],
+    trust_low: [
+      "Your deeds cast shadows on your words.",
+      "The faithful do not serve the faithless.",
+    ],
+    trust_high: [
+      "The temple doors are always open to you.",
+      "You have proven your dedication.",
+    ],
+  },
+  SCHOLAR: {
+    greeting: [
+      "Hmm? Oh, visitors. How... delightful.",
+      "Knowledge seeks the curious. Are you curious?",
+      "My research is at a critical juncture.",
+      "Questions? I have answers. At a price.",
+    ],
+    farewell: [
+      "May your mind remain sharp.",
+      "Return when you've found more questions.",
+      "Knowledge shared is knowledge preserved.",
+    ],
+    busy: [
+      "I'm following a crucial thread of logic.",
+      "Documentation waits for no one.",
+    ],
+    trust_low: [
+      "The uninitiated cannot grasp these concepts.",
+      "Prove your intellectual worth first.",
+    ],
+    trust_high: [
+      "I'll share the restricted archives with you.",
+      "Few have earned access to this knowledge.",
+    ],
+  },
+  CRIMINAL: {
+    greeting: [
+      "Keep your voice down.",
+      "You don't look like law. Good.",
+      "What kind of trouble are you buying?",
+      "No names. Just business.",
+    ],
+    farewell: [
+      "You never saw me.",
+      "Don't get caught.",
+      "Burn this conversation from your memory.",
+    ],
+    busy: [
+      "I've got a job running. Later.",
+      "Too hot right now. Come back when things cool down.",
+    ],
+    trust_low: [
+      "I don't work with strangers.",
+      "You could be anyone. Prove otherwise.",
+    ],
+    trust_high: [
+      "I've got something special for someone I trust.",
+      "You're good people. Let me show you the real operation.",
+    ],
+  },
+  TRAVELER: {
+    greeting: [
+      "The road brings all manner of folk together.",
+      "Another wanderer! Well met.",
+      "I've been to places you wouldn't believe.",
+      "Travel light, travel far, as they say.",
+    ],
+    farewell: [
+      "May your path be clear.",
+      "Until the road crosses again.",
+      "Safe travels, friend.",
+    ],
+    busy: [
+      "I need to make the next waypoint before dark.",
+      "Caravan's moving out. Walk with me if you want to talk.",
+    ],
+    trust_low: [
+      "The road has many dangers. I'm careful about company.",
+      "I've been robbed before. You understand my caution.",
+    ],
+    trust_high: [
+      "I know a shortcut few have seen. Care to join me?",
+      "You've proven yourself a true road-friend.",
+    ],
+  },
+};
+
+const ANCESTRY_FLAVORS: Record<Ancestry, { prefix: string[]; accent: string[] }> = {
+  HUMAN: {
+    prefix: ["Friend", "Stranger", "Traveler"],
+    accent: ["practical", "direct", "adaptable"],
+  },
+  ELF: {
+    prefix: ["Mortal one", "Short-lived friend", "Warm-blood"],
+    accent: ["measured", "formal", "ancient"],
+  },
+  DWARF: {
+    prefix: ["Surface-dweller", "Friend of the stone", "Beardless one"],
+    accent: ["gruff", "honest", "stubborn"],
+  },
+  ORC: {
+    prefix: ["Outsider", "Warrior", "Blood-friend"],
+    accent: ["direct", "challenging", "honorable"],
+  },
+  HALFLING: {
+    prefix: ["Big-folk", "Tall friend", "Dear visitor"],
+    accent: ["warm", "chatty", "generous"],
+  },
+  TIEFLING: {
+    prefix: ["Fellow outcast", "Marked one", "Stranger"],
+    accent: ["guarded", "knowing", "cryptic"],
+  },
+  GNOME: {
+    prefix: ["Tall one", "Curious friend", "Visitor"],
+    accent: ["curious", "enthusiastic", "scattered"],
+  },
+  MIXED: {
+    prefix: ["Kindred spirit", "Fellow traveler", "Friend"],
+    accent: ["adaptable", "understanding", "worldly"],
+  },
+};
+
+const DEFAULT_DIALOGUE: Record<DialogueType, string[]> = {
+  greeting: ["Greetings, traveler.", "Well met.", "What brings you here?"],
+  farewell: ["Until we meet again.", "Safe travels.", "Farewell."],
+  busy: ["I'm occupied at the moment.", "Not now."],
+  trust_low: ["I don't know you well enough.", "Prove yourself first."],
+  trust_high: ["It's good to see you, friend.", "What can I do for you?"],
+};
+
+const DEFAULT_ANCESTRY_FLAVOR = {
+  prefix: ["Friend", "Traveler", "Stranger"],
+  accent: ["neutral", "measured", "careful"],
+};
+
+export function getNPCGreeting(npc: NPC, trustLevel: number = 0): string {
+  const roleDialogue = ROLE_DIALOGUES[npc.role] || DEFAULT_DIALOGUE;
+  const ancestryFlavor = ANCESTRY_FLAVORS[npc.ancestry] || DEFAULT_ANCESTRY_FLAVOR;
+  
+  let dialogueType: DialogueType = "greeting";
+  if (trustLevel < -20) dialogueType = "trust_low";
+  else if (trustLevel > 50) dialogueType = "trust_high";
+  
+  const dialogues = roleDialogue[dialogueType] || roleDialogue.greeting || DEFAULT_DIALOGUE.greeting;
+  const baseDialogue = dialogues[Math.floor(Math.random() * dialogues.length)];
+  
+  const prefix = ancestryFlavor.prefix[Math.floor(Math.random() * ancestryFlavor.prefix.length)];
+  
+  if (Math.random() > 0.5) {
+    return `${prefix}. ${baseDialogue}`;
+  }
+  return baseDialogue;
+}
+
+export function getNPCFarewell(npc: NPC): string {
+  const roleDialogue = ROLE_DIALOGUES[npc.role] || DEFAULT_DIALOGUE;
+  const farewells = roleDialogue.farewell || DEFAULT_DIALOGUE.farewell;
+  return farewells[Math.floor(Math.random() * farewells.length)];
+}
+
+export function getNPCBusyResponse(npc: NPC): string {
+  const roleDialogue = ROLE_DIALOGUES[npc.role] || DEFAULT_DIALOGUE;
+  const busy = roleDialogue.busy || DEFAULT_DIALOGUE.busy;
+  return busy[Math.floor(Math.random() * busy.length)];
+}
+
+// === CONTEXTUAL ACTION MENUS PER NPC ROLE ===
+export type ActionType = "social" | "business" | "intel" | "recruitment";
+
+export interface NPCAction {
+  id: string;
+  label: string;
+  description: string;
+  type: ActionType;
+  requiresTrust?: number;
+  requiresStanding?: number;
+  costGold?: number;
+  costFavor?: number;
+}
+
+const ROLE_ACTIONS: Record<NpcRole, NPCAction[]> = {
+  MERCHANT: [
+    { id: "browse", label: "Browse Goods", description: "See what's for sale", type: "business" },
+    { id: "haggle", label: "Haggle", description: "Negotiate better prices", type: "business", requiresTrust: 10 },
+    { id: "special_stock", label: "Special Stock", description: "Access rare items", type: "business", requiresTrust: 40 },
+    { id: "trade_intel", label: "Trade Routes", description: "Learn about trade patterns", type: "intel", requiresTrust: 30, costGold: 50 },
+    { id: "supply_deal", label: "Supply Deal", description: "Arrange ongoing supplies", type: "business", requiresTrust: 50, requiresStanding: 20 },
+  ],
+  INFORMANT: [
+    { id: "gossip", label: "Share Gossip", description: "Exchange local rumors", type: "social" },
+    { id: "buy_info", label: "Buy Information", description: "Pay for specific intel", type: "intel", costGold: 25 },
+    { id: "network", label: "Network Access", description: "Connect to their network", type: "intel", requiresTrust: 40 },
+    { id: "mark", label: "Mark a Target", description: "Get intel on specific person", type: "intel", requiresTrust: 50, costGold: 100 },
+    { id: "flip", label: "Flip Loyalties", description: "Turn them into your asset", type: "recruitment", requiresTrust: 60 },
+  ],
+  GUARD: [
+    { id: "ask_patrol", label: "Ask About Patrols", description: "Learn patrol schedules", type: "intel" },
+    { id: "bribe", label: "Offer Bribe", description: "Pay for a favor", type: "business", costGold: 50 },
+    { id: "report", label: "Make a Report", description: "Share info with authorities", type: "social" },
+    { id: "escort", label: "Request Escort", description: "Hire for protection", type: "business", requiresTrust: 20, costGold: 75 },
+    { id: "blind_eye", label: "Look the Other Way", description: "Ignore something specific", type: "business", requiresTrust: 40, costGold: 150 },
+  ],
+  ARTISAN: [
+    { id: "commission", label: "Commission Work", description: "Order custom items", type: "business" },
+    { id: "apprentice", label: "Learn Trade", description: "Pick up techniques", type: "social", requiresTrust: 30 },
+    { id: "repair", label: "Repair Equipment", description: "Fix damaged gear", type: "business", costGold: 25 },
+    { id: "rush_order", label: "Rush Order", description: "Expedited crafting", type: "business", requiresTrust: 20, costGold: 100 },
+    { id: "masterwork", label: "Masterwork Request", description: "Request exceptional quality", type: "business", requiresTrust: 50, costGold: 500 },
+  ],
+  NOBLE: [
+    { id: "petition", label: "Petition Audience", description: "Request a formal meeting", type: "social" },
+    { id: "favor", label: "Ask a Favor", description: "Request their influence", type: "social", requiresTrust: 30, costFavor: 1 },
+    { id: "introduce", label: "Request Introduction", description: "Meet someone important", type: "social", requiresTrust: 40 },
+    { id: "patronage", label: "Seek Patronage", description: "Gain their sponsorship", type: "recruitment", requiresTrust: 60, requiresStanding: 40 },
+    { id: "alliance", label: "Propose Alliance", description: "Formal political partnership", type: "business", requiresTrust: 70, requiresStanding: 50 },
+  ],
+  PRIEST: [
+    { id: "blessing", label: "Seek Blessing", description: "Receive spiritual aid", type: "social" },
+    { id: "confession", label: "Make Confession", description: "Unburden your soul", type: "social", requiresTrust: 10 },
+    { id: "sanctuary", label: "Request Sanctuary", description: "Safe haven from pursuit", type: "social", requiresTrust: 30 },
+    { id: "consecrate", label: "Consecrate Item", description: "Bless equipment", type: "business", requiresTrust: 25, costGold: 50 },
+    { id: "divine_intel", label: "Sacred Knowledge", description: "Access temple archives", type: "intel", requiresTrust: 50, requiresStanding: 35 },
+  ],
+  SCHOLAR: [
+    { id: "research", label: "Request Research", description: "Get information on a topic", type: "intel" },
+    { id: "translate", label: "Translation Services", description: "Decode documents", type: "business", costGold: 30 },
+    { id: "archives", label: "Access Archives", description: "Browse their collection", type: "intel", requiresTrust: 20 },
+    { id: "tutor", label: "Private Tutoring", description: "Learn specialized knowledge", type: "social", requiresTrust: 35, costGold: 75 },
+    { id: "forbidden", label: "Forbidden Lore", description: "Access restricted knowledge", type: "intel", requiresTrust: 60, costGold: 200 },
+  ],
+  CRIMINAL: [
+    { id: "fence", label: "Fence Goods", description: "Sell questionable items", type: "business" },
+    { id: "black_market", label: "Black Market", description: "Access illegal wares", type: "business", requiresTrust: 20 },
+    { id: "contract", label: "Arrange Job", description: "Hire for dirty work", type: "business", requiresTrust: 35, costGold: 100 },
+    { id: "underground", label: "Underground Contacts", description: "Meet the underworld", type: "intel", requiresTrust: 45 },
+    { id: "syndicate", label: "Join Operations", description: "Become an associate", type: "recruitment", requiresTrust: 60 },
+  ],
+  TRAVELER: [
+    { id: "news", label: "Exchange News", description: "Share road stories", type: "social" },
+    { id: "trade", label: "Road Trade", description: "Swap travel goods", type: "business" },
+    { id: "guide", label: "Hire as Guide", description: "Navigate unfamiliar areas", type: "business", requiresTrust: 15, costGold: 40 },
+    { id: "contacts", label: "Distant Contacts", description: "Learn about far places", type: "intel", requiresTrust: 30 },
+    { id: "caravan", label: "Join Caravan", description: "Travel together safely", type: "social", requiresTrust: 40 },
+  ],
+};
+
+const DEFAULT_ACTIONS: NPCAction[] = [
+  { id: "talk", label: "Talk", description: "Have a conversation", type: "social" },
+  { id: "observe", label: "Observe", description: "Watch and learn", type: "intel" },
+];
+
+export function getNPCActions(npc: NPC, trustLevel: number = 0, standingLevel: number = 0): NPCAction[] {
+  const roleActions = ROLE_ACTIONS[npc.role] || DEFAULT_ACTIONS;
+  return roleActions.filter(action => {
+    if (action.requiresTrust && trustLevel < action.requiresTrust) return false;
+    if (action.requiresStanding && standingLevel < action.requiresStanding) return false;
+    return true;
+  });
+}
+
+export function getAllActionsForRole(role: NpcRole): NPCAction[] {
+  return ROLE_ACTIONS[role] || DEFAULT_ACTIONS;
+}
