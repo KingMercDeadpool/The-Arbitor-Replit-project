@@ -1249,3 +1249,122 @@ export type TrialState = z.infer<typeof trialStateSchema>;
 export type LegitimacyDimensions = z.infer<typeof legitimacyDimensionsSchema>;
 export type WorldState = z.infer<typeof worldStateSchema>;
 export type PlayerCharacter = z.infer<typeof playerCharacterSchema>;
+
+// ============================================================================
+// BACKWARD COMPATIBILITY - Legacy exports for existing code
+// These will be removed as files are migrated to new schema
+// ============================================================================
+
+// Legacy stance system (old 5-stance system for backward compatibility)
+export const STANCES = {
+  BALANCED: { name: "Balanced", hitMod: 0, critMod: 0, damageTakenMod: 0, controlResist: 0, injuryRiskMod: 0 },
+  AGGRESSIVE: { name: "Aggressive", hitMod: 10, critMod: 15, damageTakenMod: 10, controlResist: -5, injuryRiskMod: 15 },
+  DEFENSIVE: { name: "Defensive", hitMod: -5, critMod: -10, damageTakenMod: -20, controlResist: 10, injuryRiskMod: -10 },
+  EVASIVE: { name: "Evasive", hitMod: -10, critMod: 0, damageTakenMod: -10, controlResist: -10, injuryRiskMod: 0 },
+  FOCUSED: { name: "Focused", hitMod: 5, critMod: 5, damageTakenMod: 0, controlResist: -15, injuryRiskMod: 5 },
+  NEUTRAL: { name: "Neutral", hitMod: 0, critMod: 0, damageTakenMod: 0, controlResist: 0, injuryRiskMod: 0 },
+} as const;
+
+// Legacy rite type schema (old 5-category system)
+export const riteTypeSchema = z.enum([
+  "WARD", "SUNDER", "GLAMOUR", "VIGOR", "SIGIL"
+]);
+export type RiteType = z.infer<typeof riteTypeSchema>;
+
+// Legacy rite categories
+export const RITE_CATEGORIES = {
+  WARD: { name: "Ward", effects: ["Shield Pulse", "Cleanse Curse", "Barrier Weave"] },
+  SUNDER: { name: "Sunder", effects: ["Armor Break", "Stagger Blast", "Ground Crack"] },
+  GLAMOUR: { name: "Glamour", effects: ["Fear Wave", "Misdirection", "Secret Reveal"] },
+  VIGOR: { name: "Vigor", effects: ["Heal Surge", "Stamina Boost", "Injury Mend"] },
+  SIGIL: { name: "Sigil", effects: ["Binding Oath", "Proof Seal", "Chain Invoke"] },
+} as const;
+
+// Legacy sponsor schema
+export const sponsorSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  favor: z.number().min(0).max(100),
+  prefersGrayPlay: z.boolean(),
+  offersStaffHire: z.boolean(),
+});
+export type Sponsor = z.infer<typeof sponsorSchema>;
+
+// Legacy wound tags (expanded set for backward compatibility)
+export const legacyWoundTagSchema = z.enum([
+  "BLEEDING", "BURNED", "FRACTURED", "CONCUSSED", "HEXED",
+  "PUNCTURED", "CRUSHED", "FROSTBIT", "POISONED", "RATTLED",
+  "LIMPING", "DAZED", "WEAKENED", "BROKEN"
+]).nullable();
+
+// Legacy combatant with position field
+export const legacyCombatantSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  hp: z.number(),
+  maxHp: z.number(),
+  stance: z.enum(["BALANCED", "AGGRESSIVE", "DEFENSIVE", "EVASIVE", "FOCUSED", "NEUTRAL"]),
+  archetype: enemyArchetypeSchema.optional(),
+  isPlayer: z.boolean(),
+  position: z.number().min(0).max(2), // 0=Front, 1=Mid, 2=Back
+});
+
+// Legacy biome types for backward compatibility
+export const legacyBiomeTypeSchema = z.enum([
+  "COASTAL_LOWLANDS",
+  "RIVER_BASIN",
+  "HIGHLAND_PLATEAU",
+  "FOREST_INTERIOR",
+  "ARID_FRONTIER"
+]);
+export type BiomeType = z.infer<typeof legacyBiomeTypeSchema>;
+
+// Legacy NPC role schema
+export const npcRoleSchema = z.enum([
+  "MERCHANT",
+  "INFORMANT",
+  "GUARD",
+  "ARTISAN",
+  "SCHOLAR",
+  "PRIEST",
+  "CRIMINAL",
+  "NOBLE",
+  "TRAVELER"
+]);
+export type NpcRole = z.infer<typeof npcRoleSchema>;
+
+// Legacy NPC schema for backward compatibility
+export const legacyNpcSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  ancestry: ancestrySchema,
+  role: npcRoleSchema,
+  districtId: z.string().optional(),
+  isTraveler: z.boolean(),
+  description: z.string(),
+  recruitmentRequirements: z.object({
+    minTrust: z.number(),
+    minStanding: z.number(),
+    requiredRoleTier: z.object({
+      role: z.string(),
+      tier: z.number(),
+    }).optional(),
+    forbiddenFlag: z.string().optional(),
+  }),
+  recruited: z.boolean(),
+});
+
+// Legacy rival stage schema
+export const legacyRivalStageSchema = z.number().min(0).max(5);
+
+// Legacy rival schema
+export const legacyRivalSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  ancestry: ancestrySchema,
+  title: z.string(),
+  stage: legacyRivalStageSchema,
+  description: z.string(),
+  escalationTriggers: z.array(z.string()),
+  currentThreat: z.string(),
+});
